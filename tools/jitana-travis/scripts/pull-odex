@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [[ -f "$2.txt" ]]; then
+    exit;
+fi
+
+adb pull "$1" "$2"
+mkdir -p odex
+dexdump -d "$2" | egrep '^[0-9a-f]+:' | sed -e 's/:.*|/ /g' > "$2.txt"

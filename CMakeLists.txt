@@ -72,3 +72,29 @@ add_executable(jitana-graph
 target_link_libraries(jitana-graph
     jitana
 )
+
+#-------------------------------------------------------------------------------
+# jitana-travis
+#-------------------------------------------------------------------------------
+
+find_package(OpenGL)
+find_package(GLUT)
+find_package(Threads)
+
+add_executable(jitana-travis
+    tools/jitana-travis/main.cpp
+    lib/jitana/util/jdwp.cpp
+)
+target_link_libraries(jitana-travis
+    jitana
+    ${Boost_LIBRARIES}
+    ${OPENGL_LIBRARY}
+    ${GLUT_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+add_custom_target(jitana-travis-copy-files
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/tools/jitana-travis/scripts
+        ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_dependencies(jitana-travis jitana-travis-copy-files)

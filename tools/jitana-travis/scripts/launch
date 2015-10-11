@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Get this by:
+#    aapt dump xmltree foo.apk AndroidManifest.xml
+# COMPONENT=jp.bio100.android.superdepth/.SuperDepth
+COMPONENT=com.johnemulators.johnneslite/.MainActivity
+# COMPONENT=com.facebook.katana/.LoginActivity
+# COMPONENT=com.example.dragon/.MainActivity
+# COMPONENT=net.mandaria.tippytipper/net.mandaria.tippytipperlibrary.activities.TippyTipper
+# COMPONENT=com.google.earth/.EarthActivity
+# COMPONENT=com.android.deskclock/.DeskClock
+
+adb wait-for-device
+
+# Make sure the screen is on.
+adb shell dumpsys power | grep "mScreenOn=true" \
+    | xargs -0 test -z && adb shell input keyevent 26 && adb shell input keyevent 82
+
+# Start the app by sending the explicit intent.
+adb shell am start -D -S -n $COMPONENT
+
+sleep 1
+
+# Extract the JDWP port number. This avoids the adb jdwp freeze bug.
+rm -rf jdwp_ports.txt
+bash -c '(sleep 1; kill -9 $$) & exec adb jdwp > jdwp_ports.txt'
+JDWP_PORT=`tail -1 jdwp_ports.txt`
+echo "JDWP_PORT: $JDWP_PORT"
+
+# Port forward.
+adb forward --remove-all && adb -d forward tcp:6100 jdwp:$JDWP_PORT
+
+# Start Jitana in the background.
+# rm -rf output/insn/*.dot
+mkdir -p output/insn
+./jitana-travis &
+
+exit
+sleep 5
+
+# Start Monkey.
+echo "=== Monky: started ============================"
+time adb shell monkey -p ${COMPONENT%%/*} 30000
+echo "=== Monky: stopped ============================"
+
+exit
+
+# Kill Jitana.
+echo "Killing Jitana in 5 seconds..."
+sleep 5
+killall jitana-travis
+echo "Done."

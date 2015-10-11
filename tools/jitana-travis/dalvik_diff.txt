@@ -1,0 +1,357 @@
+diff --git a/vm/Dvm.mk b/vm/Dvm.mk
+index fe700de..3dcb7fa 100644
+--- a/vm/Dvm.mk
++++ b/vm/Dvm.mk
+@@ -259,6 +259,11 @@ ifeq ($(dvm_arch),arm)
+		compiler/codegen/arm/ArmRallocUtil.cpp \
+		compiler/template/out/CompilerTemplateAsm-$(dvm_arch_variant).S
+   endif
++
++  # For now, enable VMAP if JIT is enabled.
++  ifeq ($(WITH_JIT),true)
++  	LOCAL_CFLAGS += -DWITH_VMAP
++  endif
+ endif
+
+ ifeq ($(dvm_arch),mips)
+diff --git a/vm/DvmDex.cpp b/vm/DvmDex.cpp
+index 28cd64e..573a8f7 100644
+--- a/vm/DvmDex.cpp
++++ b/vm/DvmDex.cpp
+@@ -131,6 +131,28 @@ int dvmDexFileOpenFromFd(int fd, DvmDex** ppDvmDex)
+     *ppDvmDex = pDvmDex;
+     result = 0;
+
++#if defined(WITH_VMAP)
++    // Create an VMAP counter array.
++    pDvmDex->pVmapInstCounter = (VmapInstCounter *)dvmAllocRegion(memMap.length,
++                              PROT_READ | PROT_WRITE, "vmap-inst-counter");
++    if ((void *)(pDvmDex->pVmapInstCounter) == MAP_FAILED) {
++        dexFileFree(pDexFile);
++        sysReleaseShmem(&memMap);
++        goto bail;
++    }
++
++    ALOGI("***VMAP*** counter allocated: memMap=%8p, addr=%8p, %12u bytes",
++            &pDvmDex->memMap.addr, pDvmDex->pVmapInstCounter, memMap.length);
++
++    // The first four bytes of the VMAP counter array
++    pDvmDex->pVmapInstCounter->length = memMap.length;
++
++    // The second four bytes represnets the offset from the dex.
++    pDvmDex->pVmapInstCounter->pageOffset = (u4)pDvmDex->pVmapInstCounter - (u4)memMap.addr;
++
++    ALOGI("***VMAP***     offset=%8d", (s4)pDvmDex->pVmapInstCounter->pageOffset);
++#endif
++
+ bail:
+     return result;
+ }
+diff --git a/vm/DvmDex.h b/vm/DvmDex.h
+index 1785c26..94381a0 100644
+--- a/vm/DvmDex.h
++++ b/vm/DvmDex.h
+@@ -31,6 +31,14 @@ struct InstField;
+ struct Method;
+ struct StringObject;
+
++#if defined(WITH_VMAP)
++/* VMAP instruction counter */
++struct VmapInstCounter {
++    u4 length;
++    u4 pageOffset;
++    u2 counters[1];
++};
++#endif
+
+ /*
+  * Some additional VM data structures that are associated with the DEX file.
+@@ -58,6 +66,10 @@ struct DvmDex {
+     /* interface method lookup cache */
+     struct AtomicCache* pInterfaceCache;
+
++#if defined(WITH_VMAP)
++    VmapInstCounter *pVmapInstCounter;
++#endif
++
+     /* shared memory region with file contents */
+     bool                isMappedReadOnly;
+     MemMapping          memMap;
+diff --git a/vm/Globals.h b/vm/Globals.h
+index 29f7356..15c21d3 100644
+--- a/vm/Globals.h
++++ b/vm/Globals.h
+@@ -733,6 +733,13 @@ struct DvmGlobals {
+     VerifierStats verifierStats;
+ #endif
+
++#if defined(WITH_VMAP)
++    /*
++     * Loaded DexDvms.
++     */
++    HashTable*  loadedDexDvms;
++#endif
++
+     /* String pointed here will be deposited on the stack frame of dvmAbort */
+     const char *lastMessage;
+ };
+diff --git a/vm/jdwp/JdwpHandler.cpp b/vm/jdwp/JdwpHandler.cpp
+index 112ac4a..84a732c 100644
+--- a/vm/jdwp/JdwpHandler.cpp
++++ b/vm/jdwp/JdwpHandler.cpp
+@@ -30,6 +30,7 @@
+ #include "jdwp/JdwpConstants.h"
+ #include "jdwp/ExpandBuf.h"
+
++#include "Dalvik.h"
+ #include "Bits.h"
+ #include "Atomic.h"
+ #include "DalvikVersion.h"
+@@ -189,6 +190,8 @@ static JdwpError handleVM_Version(JdwpState* state, const u1* buf,
+     /* text information on VM version */
+     sprintf(tmpBuf, "Android DalvikVM %d.%d.%d",
+         DALVIK_MAJOR_VERSION, DALVIK_MINOR_VERSION, DALVIK_BUG_VERSION);
++    ALOGI("Android DalvikVM %d.%d.%d",
++        DALVIK_MAJOR_VERSION, DALVIK_MINOR_VERSION, DALVIK_BUG_VERSION);
+     expandBufAddUtf8String(pReply, (const u1*) tmpBuf);
+     /* JDWP version numbers */
+     expandBufAdd4BE(pReply, 1);        // major
+@@ -1708,6 +1711,90 @@ static JdwpError handleDDM_Chunk(JdwpState* state,
+     return ERR_NONE;
+ }
+
++#if defined(WITH_VMAP)
++
++static int dumpInstCounters(void *vDexOrJar, void *varg)
++{
++    ExpandBuf* pReply = (ExpandBuf*)varg;
++
++    // Internal struct for managing DexFile.
++    struct DexOrJar {
++        char*       fileName;
++        bool        isDex;
++        bool        okayToFree;
++        RawDexFile* pRawDexFile;
++        JarFile*    pJarFile;
++        u1*         pDexMemory; // malloc()ed memory, if any
++    };
++
++    const DexOrJar *pDexOrJar = (const DexOrJar *)vDexOrJar;
++    DvmDex *pDvmDex = pDexOrJar->isDex
++            ? pDexOrJar->pRawDexFile->pDvmDex
++            : pDexOrJar->pJarFile->pDvmDex;
++
++    // Send Dex or Jar filename.
++    expandBufAddUtf8String(pReply, (const u1*)pDexOrJar->fileName);
++
++    // Send the optimized dex file name.
++    u1* cacheFileName
++            = pDexOrJar->isDex
++            ? (u1*)pDexOrJar->pRawDexFile->cacheFileName
++            : (u1*)pDexOrJar->pJarFile->cacheFileName;
++    if (cacheFileName == NULL) {
++        cacheFileName = (u1*)"";
++    }
++    expandBufAddUtf8String(pReply, cacheFileName);
++
++    ALOGI("***VMAP*** isDex=%p, isDex=%d, okayToFree=%d, pRawDexFile=%p, pJarFile=%p, pDexMemory=%p, fileName=%s, cacheFileName=%s",
++            pDvmDex,
++            pDexOrJar->isDex,
++            pDexOrJar->okayToFree,
++            pDexOrJar->pRawDexFile,
++            pDexOrJar->pJarFile,
++            pDexOrJar->pDexMemory,
++            pDexOrJar->fileName,
++            (char*)cacheFileName);
++    ALOGI("***VMAP***     pDvmDex->pVmapInstCounter=%p length=%u, counters[0]=%d, counters[1]=%d, counters[2]=%d",
++            pDvmDex->pVmapInstCounter,
++            pDvmDex->pVmapInstCounter->length,
++            pDvmDex->pVmapInstCounter->counters[0],
++            pDvmDex->pVmapInstCounter->counters[1],
++            pDvmDex->pVmapInstCounter->counters[2]);
++
++    u4 length = pDvmDex->pVmapInstCounter->length;
++    u2 *buffer = (u2 *)pDvmDex->pVmapInstCounter->counters;
++    for (u4 i = 8; i < length; i += 2) {
++        if (*buffer != 0) {
++            u4 dexOffset = i - sizeof(DexOptHeader);
++            expandBufAdd4BE(pReply, dexOffset);
++            expandBufAdd2BE(pReply, *buffer);
++            ALOGI("***VMAP***       %8u:%8u", dexOffset, *buffer);
++            *buffer = 0;
++        }
++        buffer++;
++    }
++    expandBufAdd4BE(pReply, 0xffffffff);
++
++    return 0;
++}
++
++/*
++ * Handle a VMAP packet with a single chunk in it.
++ */
++static JdwpError handleVMAP_Chunk(JdwpState* state,
++    const u1* buf, int dataLen, ExpandBuf* pReply)
++{
++    dvmHashTableLock(gDvm.userDexFiles);
++    dvmHashForeach(gDvm.userDexFiles, dumpInstCounters, pReply);
++    dvmHashTableUnlock(gDvm.userDexFiles);
++
++    expandBufAdd4BE(pReply, 0xffffffff);
++
++    return ERR_NONE;
++}
++
++#endif
++
+ /*
+  * Handler map decl.
+  */
+@@ -1866,6 +1953,10 @@ static const JdwpHandlerMap gHandlerMap[] = {
+     //64,  100, Composite   <-- sent from VM to debugger, never received by VM
+
+     { 199,  1,  handleDDM_Chunk,        "DDM.Chunk" },
++
++#if defined(WITH_VMAP)
++    { 225,  1,  handleVMAP_Chunk,        "VMAP.Chunk" },
++#endif
+ };
+
+
+diff --git a/vm/mterp/armv5te/footer.S b/vm/mterp/armv5te/footer.S
+index 2980fa7..78710e2 100644
+--- a/vm/mterp/armv5te/footer.S
++++ b/vm/mterp/armv5te/footer.S
+@@ -321,6 +321,19 @@ common_testUpdateProfile:
+  *    rINST <= next instruction
+  */
+ common_updateProfile:
++#if defined(WITH_VMAP)
++    @ Load offset to the instruction counter array.
++    @ TODO: optimize by caching this value when #offThread_methodClassDex is
++    @ modified.
++    ldr     r3, [rSELF, #offThread_methodClassDex] @ r3<- self->methodClassDex
++    ldr     r3, [r3, #offDvmDex_pVmapInstCounter] @ r3<- r3->pVmapInstCounter
++    ldr     r3, [r3, #offVmapInstCounter_pageOffset] @ r3<- r3->pageOffset
++    add     r3, rPC, r3; @ r3 += rPC
++    ldrh    r1, [r3] @ load counter
++    add     r1,r1,#1 @ increment counter
++    strh    r1, [r3] @ save counter
++#endif
++
+     eor     r3,rPC,rPC,lsr #12 @ cheap, but fast hash function
+     lsl     r3,r3,#(32 - JIT_PROF_SIZE_LOG_2)          @ shift out excess bits
+     ldrb    r1,[r0,r3,lsr #(32 - JIT_PROF_SIZE_LOG_2)] @ get counter
+diff --git a/vm/mterp/common/asm-constants.h b/vm/mterp/common/asm-constants.h
+index 80b36fc..309c86b 100644
+--- a/vm/mterp/common/asm-constants.h
++++ b/vm/mterp/common/asm-constants.h
+@@ -87,6 +87,12 @@ MTERP_OFFSET(offDvmDex_pResClasses,     DvmDex, pResClasses, 12)
+ MTERP_OFFSET(offDvmDex_pResMethods,     DvmDex, pResMethods, 16)
+ MTERP_OFFSET(offDvmDex_pResFields,      DvmDex, pResFields, 20)
+ MTERP_OFFSET(offDvmDex_pInterfaceCache, DvmDex, pInterfaceCache, 24)
++#if defined(WITH_VMAP)
++MTERP_OFFSET(offDvmDex_pVmapInstCounter, DvmDex, pVmapInstCounter, 28)
++
++/* VmapInstCounter fields */
++MTERP_OFFSET(offVmapInstCounter_pageOffset, VmapInstCounter, pageOffset, 4)
++#endif
+
+ /* StackSaveArea fields */
+ #ifdef EASY_GDB
+diff --git a/vm/mterp/out/InterpAsm-armv5te-vfp.S b/vm/mterp/out/InterpAsm-armv5te-vfp.S
+index a173c72..bff5a23 100644
+--- a/vm/mterp/out/InterpAsm-armv5te-vfp.S
++++ b/vm/mterp/out/InterpAsm-armv5te-vfp.S
+@@ -15965,6 +15965,19 @@ common_testUpdateProfile:
+  *    rINST <= next instruction
+  */
+ common_updateProfile:
++#if defined(WITH_VMAP)
++    @ Load offset to the instruction counter array.
++    @ TODO: optimize by caching this value when #offThread_methodClassDex is
++    @ modified.
++    ldr     r3, [rSELF, #offThread_methodClassDex] @ r3<- self->methodClassDex
++    ldr     r3, [r3, #offDvmDex_pVmapInstCounter] @ r3<- r3->pVmapInstCounter
++    ldr     r3, [r3, #offVmapInstCounter_pageOffset] @ r3<- r3->pageOffset
++    add     r3, rPC, r3; @ r3 += rPC
++    ldrh    r1, [r3] @ load counter
++    add     r1,r1,#1 @ increment counter
++    strh    r1, [r3] @ save counter
++#endif
++
+     eor     r3,rPC,rPC,lsr #12 @ cheap, but fast hash function
+     lsl     r3,r3,#(32 - JIT_PROF_SIZE_LOG_2)          @ shift out excess bits
+     ldrb    r1,[r0,r3,lsr #(32 - JIT_PROF_SIZE_LOG_2)] @ get counter
+diff --git a/vm/mterp/out/InterpAsm-armv5te.S b/vm/mterp/out/InterpAsm-armv5te.S
+index 7b6c9d1..69edf85 100644
+--- a/vm/mterp/out/InterpAsm-armv5te.S
++++ b/vm/mterp/out/InterpAsm-armv5te.S
+@@ -16423,6 +16423,19 @@ common_testUpdateProfile:
+  *    rINST <= next instruction
+  */
+ common_updateProfile:
++#if defined(WITH_VMAP)
++    @ Load offset to the instruction counter array.
++    @ TODO: optimize by caching this value when #offThread_methodClassDex is
++    @ modified.
++    ldr     r3, [rSELF, #offThread_methodClassDex] @ r3<- self->methodClassDex
++    ldr     r3, [r3, #offDvmDex_pVmapInstCounter] @ r3<- r3->pVmapInstCounter
++    ldr     r3, [r3, #offVmapInstCounter_pageOffset] @ r3<- r3->pageOffset
++    add     r3, rPC, r3; @ r3 += rPC
++    ldrh    r1, [r3] @ load counter
++    add     r1,r1,#1 @ increment counter
++    strh    r1, [r3] @ save counter
++#endif
++
+     eor     r3,rPC,rPC,lsr #12 @ cheap, but fast hash function
+     lsl     r3,r3,#(32 - JIT_PROF_SIZE_LOG_2)          @ shift out excess bits
+     ldrb    r1,[r0,r3,lsr #(32 - JIT_PROF_SIZE_LOG_2)] @ get counter
+diff --git a/vm/mterp/out/InterpAsm-armv7-a-neon.S b/vm/mterp/out/InterpAsm-armv7-a-neon.S
+index d830053..38afb68 100644
+--- a/vm/mterp/out/InterpAsm-armv7-a-neon.S
++++ b/vm/mterp/out/InterpAsm-armv7-a-neon.S
+@@ -15874,6 +15874,19 @@ common_testUpdateProfile:
+  *    rINST <= next instruction
+  */
+ common_updateProfile:
++#if defined(WITH_VMAP)
++    @ Load offset to the instruction counter array.
++    @ TODO: optimize by caching this value when #offThread_methodClassDex is
++    @ modified.
++    ldr     r3, [rSELF, #offThread_methodClassDex] @ r3<- self->methodClassDex
++    ldr     r3, [r3, #offDvmDex_pVmapInstCounter] @ r3<- r3->pVmapInstCounter
++    ldr     r3, [r3, #offVmapInstCounter_pageOffset] @ r3<- r3->pageOffset
++    add     r3, rPC, r3; @ r3 += rPC
++    ldrh    r1, [r3] @ load counter
++    add     r1,r1,#1 @ increment counter
++    strh    r1, [r3] @ save counter
++#endif
++
+     eor     r3,rPC,rPC,lsr #12 @ cheap, but fast hash function
+     lsl     r3,r3,#(32 - JIT_PROF_SIZE_LOG_2)          @ shift out excess bits
+     ldrb    r1,[r0,r3,lsr #(32 - JIT_PROF_SIZE_LOG_2)] @ get counter
+diff --git a/vm/mterp/out/InterpAsm-armv7-a.S b/vm/mterp/out/InterpAsm-armv7-a.S
+index 65c4a70..1505f9e 100644
+--- a/vm/mterp/out/InterpAsm-armv7-a.S
++++ b/vm/mterp/out/InterpAsm-armv7-a.S
+@@ -15870,6 +15870,19 @@ common_testUpdateProfile:
+  *    rINST <= next instruction
+  */
+ common_updateProfile:
++#if defined(WITH_VMAP)
++    @ Load offset to the instruction counter array.
++    @ TODO: optimize by caching this value when #offThread_methodClassDex is
++    @ modified.
++    ldr     r3, [rSELF, #offThread_methodClassDex] @ r3<- self->methodClassDex
++    ldr     r3, [r3, #offDvmDex_pVmapInstCounter] @ r3<- r3->pVmapInstCounter
++    ldr     r3, [r3, #offVmapInstCounter_pageOffset] @ r3<- r3->pageOffset
++    add     r3, rPC, r3; @ r3 += rPC
++    ldrh    r1, [r3] @ load counter
++    add     r1,r1,#1 @ increment counter
++    strh    r1, [r3] @ save counter
++#endif
++
+     eor     r3,rPC,rPC,lsr #12 @ cheap, but fast hash function
+     lsl     r3,r3,#(32 - JIT_PROF_SIZE_LOG_2)          @ shift out excess bits
+     ldrb    r1,[r0,r3,lsr #(32 - JIT_PROF_SIZE_LOG_2)] @ get counter
