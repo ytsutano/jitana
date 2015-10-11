@@ -1,0 +1,405 @@
+digraph class_diagram {
+    // Fonts.
+    graph [fontname="ArialNarrow", fontsize=9, rankdir=UD];
+    node  [fontname="ArialNarrow", fontsize=9];
+    edge  [fontname="ArialNarrow", fontsize=9];
+
+    layout=dot;
+
+    // Classes.
+    node [shape=record];
+
+//-------------------------------------------------------------------------
+
+virtual_machine [
+URL="@ref jitana::virtual_machine"
+label="\
+{virtual_machine\
+|\
+\l|\
+  + add_loader(const loader&)\
+\l+ add_loader(const loader&, const loader_hdl& parent_hdl)\
+\l+ find_class(const jvm_type_hdl&, bool try_load)\
+\l+ find_class(const dex_type_hdl&, bool try_load)\
+\l+ find_method(const jvm_method_hdl&, bool try_load)\
+\l+ find_method(const dex_method_hdl&, bool try_load)\
+\l+ find_field(const jvm_field_hdl&, bool try_load)\
+\l+ find_field(const dex_field_hdl&, bool try_load)\
+\l+ load_all_classes(const loader_hdl&)\
+\l+ jvm_hdl(const dex_type_hdl&)\
+\l+ jvm_hdl(const dex_method_hdl&)\
+\l+ jvm_hdl(const dex_field_hdl&)\
+\l}"];
+//-------------------------------------------------------------------------
+class_loader [
+URL="@ref jitana::class_loader"
+label="\
+{class_loader\
+|\
+  + class_loader_hdl hdl_\
+\l+ std::string name_\
+\l|\
+\l}"];
+//-------------------------------------------------------------------------
+dex_file [
+URL="@ref jitana::dex_file"
+label="\
+{dex_file\
+|\
+\l|\
+\l}"];
+//-------------------------------------------------------------------------
+/*subgraph cluster_graph {*/
+    //---------------------------------------------------------------------
+    loader_graph [
+    color=darkorange2;
+    URL="@ref jitana::loader_graph"
+    label="loader_graph\n = boost::adjacency_list\<...\>"];
+    //---------------------------------------------------------------------
+    loader_graph_property [
+    URL="@ref jitana::loader_graph_property"
+    label="\
+    {loader_graph_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    loader_vertex_property [
+    URL="@ref jitana::loader_vertex_property"
+    label="\
+    {loader_vertex_property\
+    |\
+      + class_loader loader\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    loader_edge_property [
+    color=blue;
+    URL="@ref jitana::loader_edge_property"
+    label="loader_edge_property\n = any_edge_property\n = boost::type_erasure::any\<...\>"];
+    //---------------------------------------------------------------------
+    class_graph [
+    color=darkorange2;
+    URL="@ref jitana::class_graph"
+    label="class_graph\n = boost::adjacency_list\<...\>"];
+    //---------------------------------------------------------------------
+    class_graph_property [
+    URL="@ref jitana::class_graph_property"
+    label="\
+    {class_graph_property\
+    |\
+      + unordered_map\<jvm_type_hdl, size_t\>\l\ \ \ \ \ jvm_hdl_to_vertex\
+    \l+ unordered_map\<dex_type_hdl, size_t\>\l\ \ \ \ \ dex_hdl_to_vertex\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    class_vertex_property [
+    URL="@ref jitana::class_vertex_property"
+    label="\
+    {class_vertex_property\
+    |\
+      + dex_type_hdl hdl\
+    \l+ std::string descriptor\
+    \l+ raw::access_flags access_flags\
+    \l+ vector\<dex_method_hdl\> dtable\
+    \l+ vector\<dex_method_hdl\> vtable\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    class_edge_property [
+    color=blue;
+    URL="@ref jitana::class_edge_property"
+    label="class_edge_property\n = any_edge_property\n = boost::type_erasure::any\<...\>"];
+    //---------------------------------------------------------------------
+    method_graph [
+    color=darkorange2;
+    URL="@ref jitana::method_graph"
+    label="method_graph\n = boost::adjacency_list\<...\>"];
+    //---------------------------------------------------------------------
+    method_graph_property [
+    URL="@ref jitana::method_graph_property"
+    label="\
+    {method_graph_property\
+    |\
+      + unordered_map\<jvm_method_hdl, size_t\>\l\ \ \ \ \ jvm_hdl_to_vertex\
+    \l+ unordered_map\<dex_method_hdl, size_t\>\l\ \ \ \ \ dex_hdl_to_vertex\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    method_vertex_property [
+    URL="@ref jitana::method_vertex_property"
+    label="\
+    {method_vertex_property\
+    |\
+      + dex_method_hdl hdl\
+    \l+ dex_type_hdl class_hdl\
+    \l+ std::string unique_name\
+    \l+ raw::access_flags access_flags\
+    \l+ insn_graph insn_graph\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    method_edge_property [
+    color=blue;
+    URL="@ref jitana::method_edge_property"
+    label="method_edge_property\n = any_edge_property\n = boost::type_erasure::any\<...\>"];
+    //---------------------------------------------------------------------
+    field_graph [
+    color=darkorange2;
+    URL="@ref jitana::field_graph"
+    label="field_graph\n = boost::adjacency_list\<...\>"];
+    //---------------------------------------------------------------------
+    field_graph_property [
+    URL="@ref jitana::field_graph_property"
+    label="\
+    {field_graph_property\
+    |\
+      + unordered_map\<jvm_field_hdl, size_t\>\l\ \ \ \ \ jvm_hdl_to_vertex\
+    \l+ unordered_map\<dex_field_hdl, size_t\>\l\ \ \ \ \ dex_hdl_to_vertex\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    field_vertex_property [
+    URL="@ref jitana::field_vertex_property"
+    label="\
+    {field_vertex_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    field_edge_property [
+    color=blue;
+    URL="@ref jitana::field_edge_property"
+    label="field_edge_property\n = any_edge_property\n = boost::type_erasure::any\<...\>"];
+    //---------------------------------------------------------------------
+    insn_graph [
+    color=darkorange2;
+    URL="@ref jitana::insn_graph"
+    label="insn_graph\n = boost::adjacency_list\<...\>"];
+    //---------------------------------------------------------------------
+    insn_graph_property [
+    URL="@ref jitana::insn_graph_property"
+    label="\
+    {insn_graph_property\
+    |\
+      + unordered_map\<uint16_t, size_t\>\l\ \ \ \ \ offset_to_vertex\
+    \l+ dex_method_hdl method_hdl\
+    \l+ jvm_method_hdl jvm_method_hdl\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    insn_vertex_property [
+    URL="@ref jitana::insn_vertex_property"
+    label="\
+    {insn_vertex_property\
+    |\
+      + dex_insn_hdl hdl\
+    \l+ uint32_t off\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    insn [
+    color=blue;
+    URL="@ref jitana::insn"
+    label="insn\n = boost::variant\<...\>"];
+    //---------------------------------------------------------------------
+    insn_edge_property [
+    color=blue;
+    URL="@ref jitana::insn_edge_property"
+    label="insn_edge_property\n = any_edge_property\n = boost::type_erasure::any\<...\>"];
+    //---------------------------------------------------------------------
+    loader_parent_edge_property [
+    URL="@ref jitana::loader_parent_edge_property"
+    label="\
+    {loader_parent_edge_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    class_super_edge_property [
+    URL="@ref jitana::class_super_edge_property"
+    label="\
+    {class_super_edge_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    method_super_edge_property [
+    URL="@ref jitana::method_super_edge_property"
+    label="\
+    {method_super_edge_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    method_call_edge_property [
+    URL="@ref jitana::method_call_edge_property"
+    label="\
+    {method_call_edge_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    insn_control_flow_edge_property [
+    URL="@ref jitana::insn_control_flow_edge_property"
+    label="\
+    {insn_control_flow_edge_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+    insn_data_flow_edge_property [
+    URL="@ref jitana::insn_data_flow_edge_property"
+    label="\
+    {insn_data_flow_edge_property\
+    |\
+    \l|\
+    \l}"];
+    //---------------------------------------------------------------------
+
+    {
+        edge [style=invis, weight=0];
+
+        subgraph cluster_loader_graph {
+            loader_graph;
+            loader_graph_property -> loader_vertex_property;
+            {
+                rank=same;
+                loader_vertex_property -> loader_edge_property;
+            }
+            loader_parent_edge_property;
+            class_loader;
+            dex_file;
+
+            label="Loader Graph";
+            color=gray30;
+            fontcolor=gray30;
+        }
+
+        subgraph cluster_class_graph {
+            class_graph;
+            class_graph_property -> class_vertex_property;
+            {
+                rank=same;
+                class_vertex_property -> class_edge_property;
+            }
+            class_super_edge_property;
+
+            label="Class Graph";
+            color=gray30;
+            fontcolor=gray30;
+        }
+
+        subgraph cluster_method_graph {
+            method_graph;
+            method_graph_property -> method_vertex_property;
+            {
+                rank=same;
+                method_vertex_property -> method_edge_property;
+            }
+            method_super_edge_property;
+            {
+                rank=same;
+                method_super_edge_property -> method_call_edge_property;
+            }
+
+            label="Method Graph";
+            color=gray30;
+            fontcolor=gray30;
+
+            subgraph cluster_insn_graph {
+                insn_graph;
+                insn_graph_property -> insn_vertex_property;
+                {
+                    rank=same;
+                    insn_vertex_property -> insn_edge_property;
+                }
+                {
+                    rank=same;
+                    insn_control_flow_edge_property -> insn_data_flow_edge_property;
+                }
+                insn;
+
+                label="Instruction Graph";
+                color=gray30;
+                fontcolor=gray30;
+            }
+        }
+
+        subgraph cluster_field_graph {
+            field_graph;
+            field_graph_property -> field_vertex_property;
+            {
+                rank=same;
+                field_vertex_property -> field_edge_property;
+            }
+
+            label="Field Graph";
+            color=gray30;
+            fontcolor=gray30;
+        }
+    }
+//-----------------------------------------------------------------------------
+
+    // Inheritance.
+    edge [arrowhead=none, arrowtail=onormal, dir=both, weight=10000, color=blue, fontcolor=blue];
+    loader_edge_property -> loader_parent_edge_property;
+    class_edge_property -> class_super_edge_property;
+    method_edge_property -> method_super_edge_property, method_call_edge_property;
+    insn_edge_property -> insn_control_flow_edge_property, insn_data_flow_edge_property;
+
+//-----------------------------------------------------------------------------
+
+    // Composition.
+    edge [arrowhead=none, arrowtail=diamond, style=solid, dir=both, weight=1000, color=red, fontcolor=red];
+
+    virtual_machine -> loader_graph [label="loaders_"];
+    virtual_machine -> class_graph [label="classes_"];
+    virtual_machine -> method_graph [label="methods_"];
+    virtual_machine -> field_graph [label="fields_"];
+
+    method_vertex_property -> insn_graph [label="insns"];
+    loader_vertex_property -> class_loader [label="loader", weight=0];
+    class_loader -> dex_file [label="dex_files", headlabel="*"];
+    insn_vertex_property -> insn [label="insn"];
+
+    edge [weight=100000, color=darkorange2, fontcolor=darkorange2];
+
+    loader_graph -> loader_graph_property [label="GraphProperties"];
+    loader_graph -> loader_vertex_property [label="VertexProperties", headlabel="*"];
+    loader_graph -> loader_edge_property [label="EdgeProperties", headlabel="*"];
+
+    class_graph -> class_graph_property [label="GraphProperties"];
+    class_graph -> class_vertex_property [label="VertexProperties", headlabel="*"];
+    class_graph -> class_edge_property [label="EdgeProperties", headlabel="*"];
+
+    method_graph -> method_graph_property [label="GraphProperties"];
+    method_graph -> method_vertex_property [label="VertexProperties", headlabel="*"];
+    method_graph -> method_edge_property [label="EdgeProperties", headlabel="*"];
+
+    field_graph -> field_graph_property [label="GraphProperties"];
+    field_graph -> field_vertex_property [label="VertexProperties", headlabel="*"];
+    field_graph -> field_edge_property [label="EdgeProperties", headlabel="*"];
+
+    insn_graph -> insn_graph_property [label="GraphProperties"];
+    insn_graph -> insn_vertex_property [label="VertexProperties", headlabel="*"];
+    insn_graph -> insn_edge_property [label="EdgeProperties", headlabel="*"];
+
+//-----------------------------------------------------------------------------
+
+    // Aggregation.
+    edge [arrowhead=none, arrowtail=ediamond, style=solid, dir=both, weight=100, color=red, fontcolor=red];
+
+
+//-----------------------------------------------------------------------------
+
+    // References.
+    edge [arrowhead=vee, arrowtail=none, style=solid, dir=both, weight=10, color=gray, fontcolor=gray50];
+
+
+    // Indirect references.
+    edge [arrowhead=vee, arrowtail=none, style=dotted, dir=both, weight=1, color=gray, fontcolor=gray50];
+
+//-----------------------------------------------------------------------------
+
+}
