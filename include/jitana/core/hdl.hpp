@@ -5,7 +5,51 @@
 #include <cstdint>
 
 namespace jitana {
-    using class_loader_hdl = uint8_t;
+    struct class_loader_hdl {
+        uint8_t idx;
+
+        class_loader_hdl()
+        {
+        }
+
+        class_loader_hdl(uint8_t idx) : idx(idx)
+        {
+        }
+
+        explicit operator uint8_t() const
+        {
+            return idx;
+        }
+
+        explicit operator unsigned() const
+        {
+            return idx;
+        }
+
+        friend bool operator==(const class_loader_hdl& x,
+                               const class_loader_hdl& y)
+        {
+            return x.idx == y.idx;
+        }
+
+        friend bool operator!=(const class_loader_hdl& x,
+                               const class_loader_hdl& y)
+        {
+            return !(x == y);
+        }
+
+        friend bool operator<(const class_loader_hdl& x,
+                              const class_loader_hdl& y)
+        {
+            return x.idx < y.idx;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os,
+                                        const class_loader_hdl& x)
+        {
+            return os << unsigned(x);
+        }
+    };
 
     /// A handle to a DEX file.
     struct dex_file_hdl {
@@ -14,7 +58,8 @@ namespace jitana {
 
         explicit operator uint16_t() const
         {
-            return static_cast<uint16_t>(loader_hdl) << 8 | idx;
+            auto lh = static_cast<uint8_t>(loader_hdl);
+            return static_cast<uint16_t>(lh) << 8 | idx;
         }
 
         friend bool operator==(const dex_file_hdl& x, const dex_file_hdl& y)

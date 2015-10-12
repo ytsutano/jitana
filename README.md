@@ -135,9 +135,13 @@ See include/jitana/hdl.hpp for implementation details.
     </tr>
     <tr>
         <th>Class Loader</th>
-        <td colspan="2"><code>
-            using class_loader_hdl = uint8_t;
-        </code></td>
+        <td colspan="2">
+<pre>
+struct class_loader_hdl {
+    uint8_t idx;
+}
+</pre>
+        </td>
     </tr>
     <tr>
         <th>DEX File</th>
