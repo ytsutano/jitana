@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cstdint>
+#include <boost/variant.hpp>
 
 namespace jitana {
     struct class_loader_hdl {
@@ -221,27 +222,26 @@ namespace jitana {
     };
 
     struct dex_reg_hdl {
-        dex_method_hdl method_hdl;
+        dex_insn_hdl insn_hdl;
         uint16_t idx;
 
         dex_reg_hdl()
         {
         }
 
-        dex_reg_hdl(const dex_method_hdl& method_hdl, uint16_t idx)
-                : method_hdl(method_hdl), idx(idx)
+        dex_reg_hdl(const dex_insn_hdl& insn_hdl, uint16_t idx)
+                : insn_hdl(insn_hdl), idx(idx)
         {
         }
 
         explicit operator uint64_t() const
         {
-            auto mh = static_cast<uint32_t>(method_hdl);
-            return static_cast<uint64_t>(mh) << 16 | idx;
+            return static_cast<uint64_t>(insn_hdl) << 32 | idx;
         }
 
         friend bool operator==(const dex_reg_hdl& x, const dex_reg_hdl& y)
         {
-            return x.method_hdl == y.method_hdl && x.idx == y.idx;
+            return x.insn_hdl == y.insn_hdl && x.idx == y.idx;
         }
 
         friend bool operator!=(const dex_reg_hdl& x, const dex_reg_hdl& y)
@@ -251,7 +251,7 @@ namespace jitana {
 
         friend std::ostream& operator<<(std::ostream& os, const dex_reg_hdl& x)
         {
-            return os << x.method_hdl << "_" << x.idx;
+            return os << x.insn_hdl << "_" << x.idx;
         }
     };
 
@@ -343,18 +343,26 @@ namespace jitana {
 
 namespace std {
     template <>
-    struct hash<jitana::dex_type_hdl> {
-        size_t operator()(const jitana::dex_type_hdl& hdl) const
+    struct hash<jitana::class_loader_hdl> {
+        size_t operator()(const jitana::class_loader_hdl& hdl) const
         {
-            return static_cast<uint32_t>(hdl);
+            return static_cast<uint8_t>(hdl);
         }
     };
 
     template <>
-    struct hash<jitana::jvm_type_hdl> {
-        size_t operator()(const jitana::jvm_type_hdl& hdl) const
+    struct hash<jitana::dex_file_hdl> {
+        size_t operator()(const jitana::dex_file_hdl& hdl) const
         {
-            return std::hash<std::string>()(hdl.descriptor) ^ hdl.loader_hdl;
+            return static_cast<uint16_t>(hdl);
+        }
+    };
+
+    template <>
+    struct hash<jitana::dex_type_hdl> {
+        size_t operator()(const jitana::dex_type_hdl& hdl) const
+        {
+            return static_cast<uint32_t>(hdl);
         }
     };
 
@@ -375,6 +383,31 @@ namespace std {
     };
 
     template <>
+    struct hash<jitana::dex_insn_hdl> {
+        size_t operator()(const jitana::dex_insn_hdl& hdl) const
+        {
+            return static_cast<uint64_t>(hdl);
+        }
+    };
+
+    template <>
+    struct hash<jitana::dex_reg_hdl> {
+        size_t operator()(const jitana::dex_reg_hdl& hdl) const
+        {
+            return static_cast<uint64_t>(hdl);
+        }
+    };
+
+    template <>
+    struct hash<jitana::jvm_type_hdl> {
+        size_t operator()(const jitana::jvm_type_hdl& hdl) const
+        {
+            return std::hash<std::string>()(hdl.descriptor)
+                    ^ unsigned(hdl.loader_hdl);
+        }
+    };
+
+    template <>
     struct hash<jitana::jvm_method_hdl> {
         size_t operator()(const jitana::jvm_method_hdl& hdl) const
         {
@@ -391,6 +424,45 @@ namespace std {
             // TODO: come up with a better hash function.
             return std::hash<jitana::jvm_type_hdl>()(hdl.type_hdl)
                     ^ std::hash<std::string>()(hdl.unique_name);
+        }
+    };
+}
+
+namespace jitana {
+    using any_dex_hdl
+            = boost::variant<class_loader_hdl, dex_file_hdl, dex_type_hdl,
+                             dex_method_hdl, dex_field_hdl, dex_insn_hdl,
+                             dex_reg_hdl>;
+
+    namespace detail {
+        struct extract_hash : public boost::static_visitor<size_t> {
+            template <typename T>
+            size_t operator()(const T& x) const
+            {
+                return std::hash<uint64_t>()(std::hash<T>()(x));
+            }
+        };
+    }
+}
+
+namespace std {
+    template <>
+    struct hash<jitana::any_dex_hdl> {
+        size_t operator()(const jitana::any_dex_hdl& hdl) const
+        {
+            return hdl.which()
+                    + (boost::apply_visitor(jitana::detail::extract_hash(), hdl)
+                       << 4);
+        }
+    };
+}
+
+namespace boost {
+    template <>
+    struct hash<jitana::any_dex_hdl> {
+        size_t operator()(const jitana::any_dex_hdl& hdl) const
+        {
+            return std::hash<jitana::any_dex_hdl>()(hdl);
         }
     };
 }

@@ -229,7 +229,7 @@ struct dex_insn_hdl {
         <td>
 <pre>
 struct dex_reg_hdl {
-    dex_method_hdl method_hdl;
+    dex_insn_hdl insn_hdl;
     uint16_t idx;
 };
 </pre>
