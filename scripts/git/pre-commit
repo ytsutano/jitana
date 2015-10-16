@@ -1,0 +1,17 @@
+#!/bin/sh
+
+PATH=$PATH:/usr/local/bin
+
+for FILE in `exec git diff-index --check HEAD -- | sed '/^[+-]/d' | (sed -r 's/:[0-9]+:.*//' > /dev/null 2>&1 || sed -E 's/:[0-9]+:.*//') | uniq` ; do
+    echo "$FILE: Trailing whitespaces detected."
+    echo "Please remove the trailing whitespaces before committing."
+    exit 1
+done
+
+git diff --cached --name-only --diff-filter=ACMRT | grep "\.[ch]pp$" | xargs -n1 env clang-format -style=file -output-replacements-xml | grep "<replacement " >/dev/null
+if [ $? -ne 1 ]; then
+    echo "Bad C++ coding style detected."
+    echo "Please format C++ code using clang-format before committing."
+    echo "If you are using make, you can do so by running \"make format\"."
+    exit 1
+fi

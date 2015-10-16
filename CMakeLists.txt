@@ -4,6 +4,15 @@ project(Jitana)
 set(JITANA_VERSION_MAJOR 1)
 set(JITANA_VERSION_MINOR 0)
 
+if(${PROJECT_SOURCE_DIR} STREQUAL ${PROJECT_BINARY_DIR})
+    message(FATAL_ERROR "Please build in a separate directory." )
+endif()
+
+execute_process(COMMAND ${CMAKE_COMMAND} -E copy
+    ${PROJECT_SOURCE_DIR}/scripts/git/pre-commit
+    ${PROJECT_SOURCE_DIR}/.git/hooks
+)
+
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 CHECK_CXX_COMPILER_FLAG("-std=c++1y" COMPILER_SUPPORTS_CXX1Y)
