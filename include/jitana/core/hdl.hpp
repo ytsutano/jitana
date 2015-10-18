@@ -1,6 +1,8 @@
 #ifndef JITANA_HANDLE_HPP
 #define JITANA_HANDLE_HPP
 
+#include "jitana/core/idx.hpp"
+
 #include <iostream>
 #include <cstdint>
 #include <boost/variant.hpp>
@@ -110,7 +112,7 @@ namespace jitana {
 
         friend std::ostream& operator<<(std::ostream& os, const dex_type_hdl& x)
         {
-            return os << x.file_hdl << "_" << x.idx;
+            return os << x.file_hdl << "_t" << x.idx;
         }
     };
 
@@ -146,7 +148,7 @@ namespace jitana {
         friend std::ostream& operator<<(std::ostream& os,
                                         const dex_method_hdl& x)
         {
-            return os << x.file_hdl << "_" << x.idx;
+            return os << x.file_hdl << "_m" << x.idx;
         }
     };
 
@@ -182,7 +184,7 @@ namespace jitana {
         friend std::ostream& operator<<(std::ostream& os,
                                         const dex_field_hdl& x)
         {
-            return os << x.file_hdl << "_" << x.idx;
+            return os << x.file_hdl << "_f" << x.idx;
         }
     };
 
@@ -217,7 +219,7 @@ namespace jitana {
 
         friend std::ostream& operator<<(std::ostream& os, const dex_insn_hdl& x)
         {
-            return os << x.method_hdl << "_" << x.idx;
+            return os << x.method_hdl << "_i" << x.idx;
         }
     };
 
@@ -251,7 +253,7 @@ namespace jitana {
 
         friend std::ostream& operator<<(std::ostream& os, const dex_reg_hdl& x)
         {
-            return os << x.insn_hdl << "_" << x.idx;
+            return os << x.insn_hdl << "_" << register_idx(int16_t(x.idx));
         }
     };
 
@@ -301,6 +303,12 @@ namespace jitana {
         jvm_method_hdl(const jvm_type_hdl& type_hdl, std::string unique_name)
                 : type_hdl(type_hdl), unique_name(std::move(unique_name))
         {
+        }
+
+        const char* return_descriptor() const
+        {
+            auto last = unique_name.rfind(')');
+            return last != std::string::npos ? &unique_name[last + 1] : "";
         }
 
         friend bool operator==(const jvm_method_hdl& x, const jvm_method_hdl& y)

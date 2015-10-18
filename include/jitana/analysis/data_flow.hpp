@@ -75,7 +75,8 @@ namespace jitana {
 
             // Register vR may be used by the exit instruction if the return
             // type is not void.
-            if (g[boost::graph_bundle].jvm_hdl.unique_name.back() != 'V') {
+            char desc = g[boost::graph_bundle].jvm_hdl.return_descriptor()[0];
+            if (desc != 'V') {
                 auto reg_vr = make_register_variable(register_idx::idx_result);
                 exit_uses.push_back(reg_vr);
                 unique_sort(exit_uses);
