@@ -5,6 +5,7 @@
 
 #include "jitana/core/virtual_machine.hpp"
 #include "jitana/core/dex_file.hpp"
+#include "jitana/graph/edge_filtered_graph.hpp"
 
 using namespace jitana;
 using namespace jitana::detail;
@@ -306,4 +307,169 @@ jvm_field_hdl virtual_machine::jvm_hdl(const dex_field_hdl& field_hdl) const
     const auto& loader = loaders_[*lv].loader;
     return {{loader_hdl, loader.class_descriptor(field_hdl)},
             loader.name(field_hdl)};
+}
+
+namespace {
+    bool
+    load_recursive_impl(virtual_machine& vm, method_vertex_descriptor v,
+                        std::unordered_set<method_vertex_descriptor>& visited);
+
+    class recursive_loader : public boost::static_visitor<void> {
+    public:
+        recursive_loader(virtual_machine& vm,
+                         std::unordered_set<method_vertex_descriptor>& visited)
+                : vm_(vm), visited_(visited)
+        {
+        }
+
+        void operator()(const insn_const_string& x)
+        {
+        }
+
+        void operator()(const insn_const_class& x)
+        {
+        }
+
+        void operator()(const insn_new_instance& x)
+        {
+            vm_.find_class(x.const_val, true);
+        }
+
+        void operator()(const insn_new_array& x)
+        {
+        }
+
+        void operator()(const insn_filled_new_array& x)
+        {
+        }
+
+        void operator()(const insn_sget& x)
+        {
+            auto fv = vm_.find_field(x.const_val, true);
+            if (!fv) {
+                throw std::runtime_error("failed to find field");
+            }
+
+            // Try to load <clinit>.
+            {
+                const auto& fg = vm_.fields();
+                auto clinit_mv = vm_.find_method(
+                        jvm_method_hdl(fg[*fv].jvm_hdl.type_hdl, "<clinit>()V"),
+                        true);
+                if (clinit_mv) {
+                    load_recursive_impl(vm_, *clinit_mv, visited_);
+                }
+            }
+        }
+
+        void operator()(const insn_sput& x)
+        {
+            auto fv = vm_.find_field(x.const_val, true);
+            if (!fv) {
+                throw std::runtime_error("failed to find field");
+            }
+
+            // Try to load <clinit>.
+            {
+                const auto& fg = vm_.fields();
+                auto clinit_mv = vm_.find_method(
+                        jvm_method_hdl(fg[*fv].jvm_hdl.type_hdl, "<clinit>()V"),
+                        true);
+                if (clinit_mv) {
+                    load_recursive_impl(vm_, *clinit_mv, visited_);
+                }
+            }
+        }
+
+        void operator()(const insn_invoke& x)
+        {
+            auto mv = vm_.find_method(x.const_val, true);
+            if (!mv) {
+                return;
+            }
+
+            const auto& mg = vm_.methods();
+            switch (x.op) {
+            case opcode::op_invoke_static:
+            case opcode::op_invoke_static_range:
+                // Try to load <clinit>.
+                {
+                    auto clinit_mv = vm_.find_method(
+                            jvm_method_hdl(mg[*mv].jvm_hdl.type_hdl,
+                                           "<clinit>()V"),
+                            true);
+                    if (clinit_mv) {
+                        load_recursive_impl(vm_, *clinit_mv, visited_);
+                    }
+                }
+                break;
+            default:
+                break;
+            }
+
+            const auto& inheritance_mg
+                    = make_edge_filtered_graph<method_super_edge_property>(mg);
+
+            std::vector<method_vertex_descriptor> targets;
+
+            boost::vector_property_map<int> color_map(
+                    static_cast<unsigned>(num_vertices(inheritance_mg)));
+            auto f = [&](method_vertex_descriptor v,
+                         const decltype(inheritance_mg)& g) {
+                targets.push_back(v);
+                return false;
+            };
+            boost::depth_first_visit(inheritance_mg, *mv,
+                                     boost::default_dfs_visitor{}, color_map,
+                                     f);
+
+            for (auto tv : targets) {
+                load_recursive_impl(vm_, tv, visited_);
+            }
+        }
+
+        void operator()(const insn_invoke_quick& x)
+        {
+        }
+
+        template <typename T>
+        void operator()(const T& x)
+        {
+        }
+
+    private:
+        virtual_machine& vm_;
+        std::unordered_set<method_vertex_descriptor>& visited_;
+    };
+
+    bool
+    load_recursive_impl(virtual_machine& vm, method_vertex_descriptor v,
+                        std::unordered_set<method_vertex_descriptor>& visited)
+    {
+        if (visited.find(v) != end(visited)) {
+            return true;
+        }
+        visited.insert(v);
+
+        auto ig = vm.methods()[v].insns;
+
+        if (num_vertices(ig) == 0) {
+            return true;
+        }
+
+        recursive_loader rloader(vm, visited);
+        for (auto iv : boost::make_iterator_range(vertices(ig))) {
+            boost::apply_visitor(rloader, ig[iv].insn);
+        }
+
+        return true;
+    }
+}
+
+std::unordered_set<method_vertex_descriptor>
+virtual_machine::load_recursive(method_vertex_descriptor v)
+{
+    std::unordered_set<method_vertex_descriptor> visited;
+    load_recursive_impl(*this, v, visited);
+    return visited;
 }

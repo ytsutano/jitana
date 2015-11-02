@@ -70,7 +70,8 @@ namespace jitana {
                                   insn_vertex_descriptor>>
         find_insn(const dex_file_hdl& file_hdl, uint32_t offset, bool try_load);
 
-        bool load_recursive(method_vertex_descriptor v);
+        std::unordered_set<method_vertex_descriptor>
+        load_recursive(method_vertex_descriptor v);
 
         /// Loads all the classes in the specified class loader.
         bool load_all_classes(const class_loader_hdl& loader_hdl);

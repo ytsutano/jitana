@@ -606,8 +606,8 @@ static void write_traces()
             ofs << iprop.off << ",";
             ofs << iprop.counter << ",";
             ofs << iprop.line_num << ",";
-            ofs << cprop.descriptor << ",";
-            ofs << mprop.unique_name << "\n";
+            ofs << cprop.jvm_hdl.descriptor << ",";
+            ofs << mprop.jvm_hdl.unique_name << "\n";
         }
     }
 }
@@ -637,12 +637,12 @@ static void write_vtables()
             }
 
             ofs << cg[cv].hdl << ",";
-            ofs << cg[cv].descriptor << ",";
+            ofs << cg[cv].jvm_hdl.descriptor << ",";
             ofs << i << ",";
             ofs << cg[*super_cv].hdl << ",";
-            ofs << cg[*super_cv].descriptor << ",";
+            ofs << cg[*super_cv].jvm_hdl.descriptor << ",";
             ofs << mg[*mv].hdl << ",";
-            ofs << mg[*mv].unique_name << ",";
+            ofs << mg[*mv].jvm_hdl.unique_name << ",";
             ofs << "\n";
         }
     }
@@ -673,12 +673,12 @@ static void write_dtables()
             }
 
             ofs << cg[cv].hdl << ",";
-            ofs << cg[cv].descriptor << ",";
+            ofs << cg[cv].jvm_hdl.descriptor << ",";
             ofs << i << ",";
             ofs << cg[*super_cv].hdl << ",";
-            ofs << cg[*super_cv].descriptor << ",";
+            ofs << cg[*super_cv].jvm_hdl.descriptor << ",";
             ofs << mg[*mv].hdl << ",";
-            ofs << mg[*mv].unique_name << ",";
+            ofs << mg[*mv].jvm_hdl.unique_name << ",";
             ofs << "\n";
         }
     }

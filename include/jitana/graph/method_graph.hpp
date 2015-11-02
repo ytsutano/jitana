@@ -31,7 +31,7 @@ namespace jitana {
     struct method_vertex_property {
         dex_method_hdl hdl;
         dex_type_hdl class_hdl;
-        std::string unique_name;
+        jvm_method_hdl jvm_hdl;
         dex_access_flags access_flags;
         std::vector<method_param> params;
         insn_graph insns;
@@ -80,12 +80,19 @@ namespace jitana {
     }
 
     struct method_super_edge_property {
+        bool interface;
     };
 
     inline void print_graphviz_attr(std::ostream& os,
                                     const method_super_edge_property& prop)
     {
-        os << "dir=both, arrowhead=none, arrowtail=empty, color=orange";
+        os << "dir=both, arrowhead=none, arrowtail=empty, ";
+        if (prop.interface) {
+            os << "color=yellow, weight=1";
+        }
+        else {
+            os << "color=orange, weight=5";
+        }
     }
 }
 

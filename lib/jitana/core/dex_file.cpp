@@ -208,6 +208,25 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
         }
     }
 
+    // Load the interfaces.
+    std::vector<class_vertex_descriptor> interface_v_list;
+    if (def.interfaces_off() != 0) {
+        auto reader = stream_reader{dex_begin_};
+        reader.move_head(def.interfaces_off());
+
+        const auto& size = reader.get<uint32_t>();
+        for (unsigned i = 0; i < size; ++i) {
+            auto interface_hdl = dex_type_hdl{hdl_, reader.get<uint16_t>()};
+            auto interface_v = vm.find_class(interface_hdl, true);
+            if (!interface_v) {
+                std::cerr << "Failed to load " << descriptor << "\n";
+                std::cerr << vm.jvm_hdl(interface_hdl).descriptor << "\n";
+                return boost::none;
+            }
+            interface_v_list.push_back(*interface_v);
+        }
+    }
+
     // Create the handles for this class.
     auto dex_hdl = dex_type_hdl{hdl_, static_cast<uint16_t>(def.class_idx())};
     auto jvm_hdl = jvm_type_hdl{hdl_.loader_hdl, descriptor};
@@ -276,8 +295,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 field_vertex_property fvprop;
                 fvprop.kind = field_vertex_property::static_field;
                 fvprop.hdl = dex_f_hdl;
+                fvprop.jvm_hdl = jvm_f_hdl;
                 fvprop.class_hdl = dex_hdl;
-                fvprop.name = name;
                 fvprop.access_flags = access_flags;
                 fvprop.offset = static_offset;
                 fvprop.size = size;
@@ -315,8 +334,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 field_vertex_property fvprop;
                 fvprop.kind = field_vertex_property::instance_field;
                 fvprop.hdl = dex_f_hdl;
+                fvprop.jvm_hdl = jvm_f_hdl;
                 fvprop.class_hdl = dex_hdl;
-                fvprop.name = name;
                 fvprop.access_flags = access_flags;
                 fvprop.offset = instance_offset;
                 fvprop.size = size;
@@ -348,8 +367,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 auto jvm_m_hdl = jvm_method_hdl{jvm_hdl, unique_name};
                 method_vertex_property mvprop;
                 mvprop.hdl = dex_m_hdl;
+                mvprop.jvm_hdl = jvm_m_hdl;
                 mvprop.class_hdl = dex_hdl;
-                mvprop.unique_name = unique_name;
                 mvprop.access_flags = access_flags;
                 mvprop.params.reserve(param_descriptors.size());
                 for (const auto& d : param_descriptors) {
@@ -399,8 +418,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 auto jvm_m_hdl = jvm_method_hdl{jvm_hdl, unique_name};
                 method_vertex_property mvprop;
                 mvprop.hdl = dex_m_hdl;
+                mvprop.jvm_hdl = jvm_m_hdl;
                 mvprop.class_hdl = dex_hdl;
-                mvprop.unique_name = unique_name;
                 mvprop.access_flags = access_flags;
                 for (const auto& d : param_descriptors) {
                     mvprop.params.emplace_back();
@@ -419,7 +438,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 auto it = std::find_if(begin(vtable), vtab_inherited_end,
                                        [&](const dex_method_hdl& h) {
                                            auto v = lookup_method_vertex(h, mg);
-                                           const auto& n = mg[*v].unique_name;
+                                           const auto& n
+                                                   = mg[*v].jvm_hdl.unique_name;
                                            return unique_name == n;
                                        });
                 if (it != vtab_inherited_end) {
@@ -429,6 +449,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                         throw std::runtime_error("invalid DEX file.");
                     }
                     method_super_edge_property eprop;
+                    eprop.interface = false; // FIXME.
                     add_edge(*super_v, mv, eprop, mg);
                 }
                 else {
@@ -464,7 +485,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
     // Create a vertex in the class graph.
     class_vertex_property vprop;
     vprop.hdl = dex_hdl;
-    vprop.descriptor = descriptor;
+    vprop.jvm_hdl = jvm_hdl;
     vprop.access_flags = def.access_flags();
     vprop.instance_fields = instance_fields;
     vprop.static_fields = static_fields;
@@ -478,7 +499,12 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
 
     // Add an edge to the super class if it exists.
     if (super_v) {
-        add_edge(*super_v, v, class_super_edge_property{}, vm.classes());
+        add_edge(*super_v, v, class_super_edge_property{false}, vm.classes());
+    }
+
+    // Add edges to interfaces.
+    for (const auto& interface_v : interface_v_list) {
+        add_edge(interface_v, v, class_super_edge_property{true}, vm.classes());
     }
 
     return v;
@@ -1008,6 +1034,7 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                   &raw_insns[off + raw.roff_b]);
                 array_payload payload;
                 payload.element_width = raw_payload.element_width;
+                payload.size = raw_payload.size;
                 payload.data.insert(payload.data.begin(), raw_payload.data,
                                     raw_payload.data + raw_payload.size);
 
@@ -1020,6 +1047,9 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                 const auto& raw = raw_insn->fmt_11x;
 
                 prop.insn = insn_throw(op, {{raw.reg_a}}, {});
+
+                // TODO: handle exceptions correctly.
+                // add_edge(v, exit_v, insn_control_flow_edge_property(), g);
             }
             break;
         case opcode::op_goto:
@@ -1761,7 +1791,7 @@ void dex_file::parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
         }
     }
     else {
-        std::cerr << "size mismatch " << mvprop.unique_name << ": ";
+        std::cerr << "size mismatch " << mvprop.jvm_hdl.unique_name << ": ";
         std::cerr << "parameters_size=" << parameters_size << ", ";
         std::cerr << "mvprop.params.size()=" << mvprop.params.size() << "\n";
     }

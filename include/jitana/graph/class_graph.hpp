@@ -24,7 +24,7 @@ namespace jitana {
     /// A class graph vertex property.
     struct class_vertex_property {
         dex_type_hdl hdl;
-        std::string descriptor;
+        jvm_type_hdl jvm_hdl;
         dex_access_flags access_flags;
         std::vector<dex_field_hdl> static_fields;
         std::vector<dex_field_hdl> instance_fields;
@@ -76,12 +76,19 @@ namespace jitana {
     }
 
     struct class_super_edge_property {
+        bool interface;
     };
 
     inline void print_graphviz_attr(std::ostream& os,
                                     const class_super_edge_property& prop)
     {
-        os << "dir=both, arrowhead=none, arrowtail=empty, color=orange";
+        os << "dir=both, arrowhead=none, arrowtail=empty, ";
+        if (prop.interface) {
+            os << "color=yellow, weight=1";
+        }
+        else {
+            os << "color=orange, weight=5";
+        }
     }
 }
 

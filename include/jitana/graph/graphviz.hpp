@@ -62,7 +62,7 @@ namespace jitana {
             label_ss << g[v].hdl;
             label_ss << "|" << g[v].access_flags;
             label_ss << "}";
-            label_ss << "|" << g[v].descriptor;
+            label_ss << "|" << g[v].jvm_hdl.descriptor;
 
             os << "[";
             os << "label=" << boost::escape_dot_string(label_ss.str());
@@ -97,7 +97,8 @@ namespace jitana {
             label_ss << unsigned(g[v].hdl.file_hdl.loader_hdl);
             label_ss << "|" << g[v].access_flags;
             label_ss << "}";
-            label_ss << "|" << g[v].unique_name;
+            label_ss << "|" << g[v].jvm_hdl.type_hdl.descriptor;
+            label_ss << "|" << g[v].jvm_hdl.unique_name;
 
             os << "[";
             os << "label=" << escape_dot_record_string(label_ss.str());
@@ -184,7 +185,7 @@ namespace jitana {
             label_ss << "{";
             label_ss << "offset=" << g[v].offset;
             label_ss << "|" << g[v].type_char;
-            label_ss << "|" << g[v].name;
+            label_ss << "|" << g[v].jvm_hdl.unique_name;
             label_ss << "}";
             label_ss << "|" << g[v].access_flags;
 

@@ -26,8 +26,8 @@ namespace jitana {
     struct field_vertex_property {
         enum { static_field, instance_field } kind;
         dex_field_hdl hdl;
+        jvm_field_hdl jvm_hdl;
         dex_type_hdl class_hdl;
-        std::string name;
         dex_access_flags access_flags;
         uint16_t offset;
         uint8_t size;
