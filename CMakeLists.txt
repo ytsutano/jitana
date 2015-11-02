@@ -65,6 +65,29 @@ add_custom_target(count
 #-------------------------------------------------------------------------------
 
 add_library(jitana
+    include/jitana/algorithm/monotonic_dataflow.hpp
+    include/jitana/algorithm/unique_sort.hpp
+    include/jitana/analysis/call_graph.hpp
+    include/jitana/analysis/data_flow.hpp
+    include/jitana/analysis/symbolic_execution.hpp
+    include/jitana/analysis/symbolic_execution_old.hpp
+    include/jitana/core/access_flags.hpp
+    include/jitana/core/class_loader.hpp
+    include/jitana/core/dex_file.hpp
+    include/jitana/core/dex_raw_types.hpp
+    include/jitana/core/hdl.hpp
+    include/jitana/core/idx.hpp
+    include/jitana/core/insn.hpp
+    include/jitana/core/insn_info.hpp
+    include/jitana/core/opcode.hpp
+    include/jitana/core/variable.hpp
+    include/jitana/core/virtual_machine.hpp
+    include/jitana/graph/class_graph.hpp
+    include/jitana/graph/edge_filtered_graph.hpp
+    include/jitana/graph/field_graph.hpp
+    include/jitana/graph/graph_common.hpp
+    include/jitana/graph/graphviz.hpp
+    include/jitana/graph/insn_graph.hpp
     lib/jitana/core/virtual_machine.cpp
     lib/jitana/core/class_loader.cpp
     lib/jitana/core/dex_file.cpp
