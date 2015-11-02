@@ -64,6 +64,11 @@ namespace jitana {
         {
             const auto& insn_info = info(x.op);
             std::vector<variable> result;
+
+            if (x.op == opcode::op_check_cast) {
+                return result;
+            }
+
             if (RegSize > 0 && insn_info.sets_register()
                 && !insn_info.sets_result()) {
                 result.push_back(make_register_variable(x.regs[0]));
