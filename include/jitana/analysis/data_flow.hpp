@@ -85,25 +85,25 @@ namespace jitana {
 
         using elem = std::pair<insn_vertex_descriptor, variable>;
         using set = std::vector<elem>;
-        auto flow_func =
-                [&](insn_vertex_descriptor v, const set& inset, set& outset) {
-                    // Propagate.
-                    outset = inset;
+        auto flow_func
+                = [&](insn_vertex_descriptor v, const set& inset, set& outset) {
+                      // Propagate.
+                      outset = inset;
 
-                    // Kill.
-                    for (const auto& x : defs_map[v]) {
-                        auto e = std::remove_if(
-                                begin(outset), end(outset),
-                                [&](const elem& f) { return f.second == x; });
-                        outset.erase(e, end(outset));
-                    }
+                      // Kill.
+                      for (const auto& x : defs_map[v]) {
+                          auto e = std::remove_if(
+                                  begin(outset), end(outset),
+                                  [&](const elem& f) { return f.second == x; });
+                          outset.erase(e, end(outset));
+                      }
 
-                    // Gen.
-                    for (const auto& x : defs_map[v]) {
-                        outset.emplace_back(v, x);
-                    }
-                    unique_sort(outset);
-                };
+                      // Gen.
+                      for (const auto& x : defs_map[v]) {
+                          outset.emplace_back(v, x);
+                      }
+                      unique_sort(outset);
+                  };
         auto comb_op = [](set& x, const set& y) {
             // Apply in-place union.
             set temp;

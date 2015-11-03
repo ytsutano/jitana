@@ -22,13 +22,15 @@ void test_virtual_machine()
     jitana::virtual_machine vm;
 
     {
-        const auto& filenames = {
-                "../dex/framework/core.dex", "../dex/framework/framework.dex",
-                "../dex/framework/framework2.dex", "../dex/framework/ext.dex",
-                "../dex/framework/conscrypt.dex", "../dex/framework/okhttp.dex",
-                "../dex/framework/core-junit.dex",
-                "../dex/framework/android.test.runner.dex",
-                "../dex/framework/android.policy.dex"};
+        const auto& filenames = {"../dex/framework/core.dex",
+                                 "../dex/framework/framework.dex",
+                                 "../dex/framework/framework2.dex",
+                                 "../dex/framework/ext.dex",
+                                 "../dex/framework/conscrypt.dex",
+                                 "../dex/framework/okhttp.dex",
+                                 "../dex/framework/core-junit.dex",
+                                 "../dex/framework/android.test.runner.dex",
+                                 "../dex/framework/android.policy.dex"};
         jitana::class_loader loader(11, "SystemLoader", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader);

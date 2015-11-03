@@ -194,9 +194,9 @@ namespace jitana {
             os << ",";
             os << "shape=record";
             os << ",";
-            os << "color=" << (g[v].kind == field_vertex_property::static_field
-                                       ? "red"
-                                       : "blue");
+            os << "color="
+               << (g[v].kind == field_vertex_property::static_field ? "red"
+                                                                    : "blue");
             os << "]";
         };
 

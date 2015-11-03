@@ -44,8 +44,8 @@ namespace jitana {
 
         // Create a vertex copier. This shouldn't be necessary, but the BGL
         // still doesn't support bundled properties.
-        auto v_copier =
-                [&](const auto& v1, const auto& v2) { dst[v1] = fg[v2]; };
+        auto v_copier
+                = [&](const auto& v1, const auto& v2) { dst[v1] = fg[v2]; };
 
         // Copy the graph.
         boost::copy_graph(fg, dst, boost::vertex_copy(v_copier));

@@ -57,7 +57,8 @@ public:
             // Get the basename of the ODEX file.
             std::string basename
                     = {std::find_if(filename.rbegin(), filename.rend(),
-                                    [](char c) { return c == '/'; }).base(),
+                                    [](char c) { return c == '/'; })
+                               .base(),
                        end(filename)};
             std::cout << basename << "\n";
 
@@ -490,10 +491,10 @@ static void handle_motion_event(int x, int y)
     if (shifting) {
         const double a = -2000 * view_zoom * (x - drag_start_x) / width;
         const double b = -2000 * view_zoom * (y - drag_start_y) / height;
-        view_center_x_offset = a * std::sin(view_angle)
-                + b * std::cos(view_angle);
-        view_center_y_offset = a * std::cos(view_angle)
-                - b * std::sin(view_angle);
+        view_center_x_offset
+                = a * std::sin(view_angle) + b * std::cos(view_angle);
+        view_center_y_offset
+                = a * std::cos(view_angle) - b * std::sin(view_angle);
         reshape(width, height);
         glutPostRedisplay();
     }
@@ -796,13 +797,16 @@ int main(int argc, char** argv)
     init_opengl();
 
     {
-        std::vector<std::string> filenames = {
-                "../dex/framework/core.dex", "../dex/framework/framework.dex",
-                "../dex/framework/framework2.dex", "../dex/framework/ext.dex",
-                "../dex/framework/conscrypt.dex", "../dex/framework/okhttp.dex",
-                "../dex/framework/core-junit.dex",
-                "../dex/framework/android.test.runner.dex",
-                "../dex/framework/android.policy.dex"};
+        std::vector<std::string> filenames
+                = {"../dex/framework/core.dex",
+                   "../dex/framework/framework.dex",
+                   "../dex/framework/framework2.dex",
+                   "../dex/framework/ext.dex",
+                   "../dex/framework/conscrypt.dex",
+                   "../dex/framework/okhttp.dex",
+                   "../dex/framework/core-junit.dex",
+                   "../dex/framework/android.test.runner.dex",
+                   "../dex/framework/android.policy.dex"};
         jitana::class_loader loader(system_loader_hdl, "SystemLoader",
                                     begin(filenames), end(filenames));
         vm.add_loader(loader);
