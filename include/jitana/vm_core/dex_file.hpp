@@ -1,8 +1,8 @@
 #ifndef JITANA_DEX_FILE_HPP
 #define JITANA_DEX_FILE_HPP
 
-#include "jitana/core/virtual_machine.hpp"
-#include "jitana/core/dex_raw_types.hpp"
+#include "jitana/vm_core/virtual_machine.hpp"
+#include "jitana/vm_core/dex_raw_types.hpp"
 #include "jitana/util/stream_reader.hpp"
 
 #include <string>

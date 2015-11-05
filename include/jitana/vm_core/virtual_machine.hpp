@@ -1,10 +1,10 @@
 #ifndef JITANA_VIRTUAL_MACHINE_HPP
 #define JITANA_VIRTUAL_MACHINE_HPP
 
-#include "jitana/graph/loader_graph.hpp"
-#include "jitana/graph/class_graph.hpp"
-#include "jitana/graph/method_graph.hpp"
-#include "jitana/graph/field_graph.hpp"
+#include "jitana/vm_graph/loader_graph.hpp"
+#include "jitana/vm_graph/class_graph.hpp"
+#include "jitana/vm_graph/method_graph.hpp"
+#include "jitana/vm_graph/field_graph.hpp"
 
 #include <boost/optional.hpp>
 

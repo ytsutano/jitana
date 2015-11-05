@@ -1,7 +1,7 @@
 #ifndef JITANA_VARIABLE_HPP
 #define JITANA_VARIABLE_HPP
 
-#include "jitana/core/idx.hpp"
+#include "jitana/vm_core/idx.hpp"
 
 #include <cstdint>
 #include <iostream>

@@ -9,9 +9,9 @@
 #include <boost/range/iterator_range.hpp>
 
 #include <jitana/jitana.hpp>
-#include <jitana/core/dex_file.hpp>
-#include <jitana/graph/graphviz.hpp>
-#include <jitana/graph/edge_filtered_graph.hpp>
+#include <jitana/vm_core/dex_file.hpp>
+#include <jitana/vm_graph/graphviz.hpp>
+#include <jitana/vm_graph/edge_filtered_graph.hpp>
 #include <jitana/analysis/call_graph.hpp>
 #include <jitana/analysis/data_flow.hpp>
 

@@ -3,9 +3,9 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/depth_first_search.hpp>
 
-#include "jitana/core/virtual_machine.hpp"
-#include "jitana/core/dex_file.hpp"
-#include "jitana/graph/edge_filtered_graph.hpp"
+#include "jitana/vm_core/virtual_machine.hpp"
+#include "jitana/vm_core/dex_file.hpp"
+#include "jitana/vm_graph/edge_filtered_graph.hpp"
 
 using namespace jitana;
 using namespace jitana::detail;

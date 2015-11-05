@@ -1,10 +1,10 @@
 #ifndef JITANA_DATA_FLOW_HPP
 #define JITANA_DATA_FLOW_HPP
 
-#include "jitana/core/virtual_machine.hpp"
-#include "jitana/core/insn_info.hpp"
-#include "jitana/core/variable.hpp"
-#include "jitana/graph/edge_filtered_graph.hpp"
+#include "jitana/vm_core/virtual_machine.hpp"
+#include "jitana/vm_core/insn_info.hpp"
+#include "jitana/vm_core/variable.hpp"
+#include "jitana/vm_graph/edge_filtered_graph.hpp"
 #include "jitana/algorithm/monotonic_dataflow.hpp"
 
 #include <algorithm>

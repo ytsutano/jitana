@@ -1,8 +1,8 @@
 #ifndef JITANA_LOADER_GRAPH_HPP
 #define JITANA_LOADER_GRAPH_HPP
 
-#include "jitana/core/class_loader.hpp"
-#include "jitana/graph/graph_common.hpp"
+#include "jitana/vm_core/class_loader.hpp"
+#include "jitana/vm_graph/graph_common.hpp"
 
 #include <iostream>
 #include <vector>

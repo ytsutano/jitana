@@ -1,4 +1,4 @@
-#include "jitana/core/insn_info.hpp"
+#include "jitana/vm_core/insn_info.hpp"
 
 using namespace jitana;
 using namespace jitana::detail;

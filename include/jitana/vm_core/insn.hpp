@@ -1,11 +1,11 @@
 #ifndef JITANA_INSN_HPP
 #define JITANA_INSN_HPP
 
-#include "jitana/core/hdl.hpp"
-#include "jitana/core/idx.hpp"
-#include "jitana/core/variable.hpp"
-#include "jitana/core/insn_info.hpp"
-#include "jitana/core/opcode.hpp"
+#include "jitana/vm_core/hdl.hpp"
+#include "jitana/vm_core/idx.hpp"
+#include "jitana/vm_core/variable.hpp"
+#include "jitana/vm_core/insn_info.hpp"
+#include "jitana/vm_core/opcode.hpp"
 #include "jitana/algorithm/unique_sort.hpp"
 
 #include <iostream>

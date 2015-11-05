@@ -1,5 +1,5 @@
-#include "jitana/core/dex_file.hpp"
-#include "jitana/core/insn_info.hpp"
+#include "jitana/vm_core/dex_file.hpp"
+#include "jitana/vm_core/insn_info.hpp"
 
 #include <sys/mman.h>
 #include <sys/types.h>

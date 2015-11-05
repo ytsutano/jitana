@@ -1,7 +1,7 @@
 #ifndef JITANA_INSN_INFO_HPP
 #define JITANA_INSN_INFO_HPP
 
-#include "jitana/core/opcode.hpp"
+#include "jitana/vm_core/opcode.hpp"
 
 #include <cstddef>
 #include <cstdint>

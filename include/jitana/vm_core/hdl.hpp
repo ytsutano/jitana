@@ -1,7 +1,7 @@
 #ifndef JITANA_HANDLE_HPP
 #define JITANA_HANDLE_HPP
 
-#include "jitana/core/idx.hpp"
+#include "jitana/vm_core/idx.hpp"
 
 #include <iostream>
 #include <cstdint>

@@ -1,7 +1,7 @@
 #ifndef JITANA_CLASS_GRAPH_HPP
 #define JITANA_CLASS_GRAPH_HPP
 
-#include "jitana/graph/graph_common.hpp"
+#include "jitana/vm_graph/graph_common.hpp"
 
 #include <iostream>
 #include <vector>

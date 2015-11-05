@@ -1,6 +1,6 @@
-#include "jitana/core/class_loader.hpp"
-#include "jitana/core/virtual_machine.hpp"
-#include "jitana/core/dex_file.hpp"
+#include "jitana/vm_core/class_loader.hpp"
+#include "jitana/vm_core/virtual_machine.hpp"
+#include "jitana/vm_core/dex_file.hpp"
 
 using namespace jitana;
 using namespace jitana::detail;

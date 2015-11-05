@@ -1,8 +1,8 @@
 #ifndef JITANA_INSN_GRAPH_HPP
 #define JITANA_INSN_GRAPH_HPP
 
-#include "jitana/core/insn.hpp"
-#include "jitana/graph/graph_common.hpp"
+#include "jitana/vm_core/insn.hpp"
+#include "jitana/vm_graph/graph_common.hpp"
 
 #include <iostream>
 #include <vector>

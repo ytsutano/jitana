@@ -1,9 +1,9 @@
 #ifndef JITANA_DEX_RAW_TYPES_HPP
 #define JITANA_DEX_RAW_TYPES_HPP
 
-#include "jitana/core/idx.hpp"
-#include "jitana/core/opcode.hpp"
-#include "jitana/core/access_flags.hpp"
+#include "jitana/vm_core/idx.hpp"
+#include "jitana/vm_core/opcode.hpp"
+#include "jitana/vm_core/access_flags.hpp"
 
 namespace jitana {
     /// A string ID.

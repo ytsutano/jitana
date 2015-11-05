@@ -1,10 +1,10 @@
 #ifndef JITANA_CLASS_LOADER_HPP
 #define JITANA_CLASS_LOADER_HPP
 
-#include "jitana/core/hdl.hpp"
-#include "jitana/graph/class_graph.hpp"
-#include "jitana/graph/method_graph.hpp"
-#include "jitana/graph/field_graph.hpp"
+#include "jitana/vm_core/hdl.hpp"
+#include "jitana/vm_graph/class_graph.hpp"
+#include "jitana/vm_graph/method_graph.hpp"
+#include "jitana/vm_graph/field_graph.hpp"
 
 #include <memory>
 #include <vector>
