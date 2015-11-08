@@ -17,15 +17,20 @@ label="\
 {virtual_machine\
 |\
 \l|\
-  + add_loader(const loader&)\
-\l+ add_loader(const loader&, const loader_hdl& parent_hdl)\
+  + add_loader(class_loader)\
+\l+ add_loader(class_loader, const class_loader_hdl& parent_hdl)\
+\l\
 \l+ find_class(const jvm_type_hdl&, bool try_load)\
 \l+ find_class(const dex_type_hdl&, bool try_load)\
 \l+ find_method(const jvm_method_hdl&, bool try_load)\
 \l+ find_method(const dex_method_hdl&, bool try_load)\
 \l+ find_field(const jvm_field_hdl&, bool try_load)\
 \l+ find_field(const dex_field_hdl&, bool try_load)\
-\l+ load_all_classes(const loader_hdl&)\
+\l+ find_insn(const dex_file_hdl&, uint32_t offset, bool try_load)\
+\l\
+\l+ load_recursive(method_vertex_descriptor)\
+\l+ load_all_classes(const class_loader_hdl&)\
+\l\
 \l+ jvm_hdl(const dex_type_hdl&)\
 \l+ jvm_hdl(const dex_method_hdl&)\
 \l+ jvm_hdl(const dex_field_hdl&)\
@@ -88,8 +93,8 @@ label="\
     label="\
     {class_graph_property\
     |\
-      + unordered_map\<jvm_type_hdl, size_t\>\l\ \ \ \ \ jvm_hdl_to_vertex\
-    \l+ unordered_map\<dex_type_hdl, size_t\>\l\ \ \ \ \ dex_hdl_to_vertex\
+      + unordered_map\<jvm_type_hdl, class_vertex_descriptor\>\l\ \ \ \ \ jvm_hdl_to_vertex\
+    \l+ unordered_map\<dex_type_hdl, class_vertex_descriptor\>\l\ \ \ \ \ hdl_to_vertex\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
@@ -99,8 +104,10 @@ label="\
     {class_vertex_property\
     |\
       + dex_type_hdl hdl\
-    \l+ std::string descriptor\
-    \l+ raw::access_flags access_flags\
+    \l+ jvm_type_hdl jvm_hdl\
+    \l+ dex_access_flags access_flags\
+    \l+ vector\<dex_field_hdl\> static_fields\
+    \l+ vector\<dex_field_hdl\> instance_fields\
     \l+ vector\<dex_method_hdl\> dtable\
     \l+ vector\<dex_method_hdl\> vtable\
     \l|\
@@ -121,8 +128,8 @@ label="\
     label="\
     {method_graph_property\
     |\
-      + unordered_map\<jvm_method_hdl, size_t\>\l\ \ \ \ \ jvm_hdl_to_vertex\
-    \l+ unordered_map\<dex_method_hdl, size_t\>\l\ \ \ \ \ dex_hdl_to_vertex\
+      + unordered_map\<jvm_method_hdl, method_vertex_descriptor\>\l\ \ \ \ \ jvm_hdl_to_vertex\
+    \l+ unordered_map\<dex_method_hdl, method_vertex_descriptor\>\l\ \ \ \ \ hdl_to_vertex\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
@@ -132,10 +139,10 @@ label="\
     {method_vertex_property\
     |\
       + dex_method_hdl hdl\
+    \l+ jvm_method_hdl jvm_hdl\
     \l+ dex_type_hdl class_hdl\
-    \l+ std::string unique_name\
-    \l+ raw::access_flags access_flags\
-    \l+ insn_graph insn_graph\
+    \l+ dex_access_flags access_flags\
+    \l+ vector\<method_param\> params\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
@@ -154,8 +161,8 @@ label="\
     label="\
     {field_graph_property\
     |\
-      + unordered_map\<jvm_field_hdl, size_t\>\l\ \ \ \ \ jvm_hdl_to_vertex\
-    \l+ unordered_map\<dex_field_hdl, size_t\>\l\ \ \ \ \ dex_hdl_to_vertex\
+      + unordered_map\<jvm_field_hdl, field_vertex_descriptor\>\l\ \ \ \ \ jvm_hdl_to_vertex\
+    \l+ unordered_map\<dex_field_hdl, field_vertex_descriptor\>\l\ \ \ \ \ hdl_to_vertex\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
@@ -164,6 +171,14 @@ label="\
     label="\
     {field_vertex_property\
     |\
+      + enum \{ static_field, instance_field \} kind\
+    \l+ dex_field_hdl hdl\
+    \l+ jvm_field_hdl jvm_hdl\
+    \l+ dex_type_hdl class_hdl\
+    \l+ dex_access_flags access_flags\
+    \l+ uint16_t offset\
+    \l+ uint8_t size\
+    \l+ char type_char\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
@@ -182,9 +197,14 @@ label="\
     label="\
     {insn_graph_property\
     |\
-      + unordered_map\<uint16_t, size_t\>\l\ \ \ \ \ offset_to_vertex\
-    \l+ dex_method_hdl method_hdl\
-    \l+ jvm_method_hdl jvm_method_hdl\
+      + std::unordered_map\<uint16_t, insn_vertex_descriptor\>\l\ \ \ \ \ offset_to_vertex\
+    \l+ dex_method_hdl hdl\
+    \l+ jvm_method_hdl jvm_hdl\
+    \l+ std::vector\<try_catch_block\> try_catches\
+    \l+ size_t registers_size\
+    \l+ size_t ins_size\
+    \l+ size_t outs_size\
+    \l+ uint32_t insns_off\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
@@ -194,7 +214,9 @@ label="\
     {insn_vertex_property\
     |\
       + dex_insn_hdl hdl\
+    \l+ long long counter = 0\
     \l+ uint32_t off\
+    \l+ int line_num = 0\
     \l|\
     \l}"];
     //---------------------------------------------------------------------

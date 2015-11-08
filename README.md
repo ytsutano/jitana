@@ -11,7 +11,7 @@ Jitana
 
 * Written in C++14.
 * Uses the [Boost Graph Library (BGL)](http://www.boost.org/libs/graph/doc/).
-    * Supports generic programming.
+    * Existing generic graph algorithms can be applied to Jitana data structure.
 * Can be used as a library:
     * Run side-by-side with a virtual machine on a target device.
     * Run on a host machine talking to the target device via JDWP.
@@ -26,7 +26,8 @@ Jitana
         * Never use pointers with implied ownership.
         * Don't abuse smart pointers.
         * Avoid Java-style intrusive inheritance which implies pointer semantics. Prefer generic algorithm for static polymorphism, and  type erasure for dynamic polymorphism.
-    * Use the standard generic algorithms.
+    * Write less.
+        * Use the standard generic algorithms.
 * Any C++ code *must* be formatted using `clang-format` with provided `.clang-format` file before committing to the repository.
 
 ## Building
@@ -79,7 +80,7 @@ Then
             * `std::unordered_map<jitana::dex_type_hdl, jitana::class_vertex_descriptor> hdl_to_vertex`
         * <em>[Vertex Property]</em> `jitana::class_vertex_property`
             * `jitana::dex_type_hdl hdl`
-            * `std::string descriptor`
+            * `jitana::jvm_type_hdl jvm_hdl`
             * `jitana::dex_access_flags access_flags`
             * `std::vector<jitana::dex_field_hdl> static_fields`
             * `std::vector<jitana::dex_field_hdl> instance_fields`
@@ -94,8 +95,8 @@ Then
             * `std::unordered_map<jitana::dex_method_hdl, jitana::method_vertex_descriptor> hdl_to_vertex`
         * <em>[Vertex Property]</em> `jitana::method_vertex_property`
             * `jitana::dex_method_hdl hdl`
+            * `jitana::jvm_method_hdl jvm_hdl`
             * `jitana::dex_type_hdl class_hdl`
-            * `std::string unique_name`
             * `jitana::dex_access_flags access_flags`
             * `std::vector<jitana::method_param> params`
             * <strong>[Graph]</strong> `jitana::insn_graph insns`
@@ -252,24 +253,22 @@ int main()
 
     // 2a.  Create and add a system class loader.
     {
-        const auto& filenames = {
-            "dex/system/framework/core.dex",
-            "dex/system/framework/framework.dex",
-            "dex/system/framework/framework2.dex",
-            "dex/system/framework/ext.dex",
-            "dex/system/framework/conscrypt.dex",
-            "dex/system/framework/okhttp.dex",
-        };
-        jitana::class_loader loader(11, begin(filenames), end(filenames));
+        const auto& filenames = {"dex/system/framework/core.dex",
+                                 "dex/system/framework/framework.dex",
+                                 "dex/system/framework/framework2.dex",
+                                 "dex/system/framework/ext.dex",
+                                 "dex/system/framework/conscrypt.dex",
+                                 "dex/system/framework/okhttp.dex"};
+        jitana::class_loader loader(11, "SystemLoader", begin(filenames),
+                                    end(filenames));
         vm.add_loader(loader);
     }
 
     // 2b. Create and add an application class loader.
     {
-        const auto& filenames = {
-            "dex/app/instagram_classes.dex",
-        };
-        jitana::loader loader(22, begin(filenames), end(filenames));
+        const auto& filenames = {"dex/app/instagram_classes.dex"};
+        jitana::loader loader(22, "Instagram", begin(filenames),
+                              end(filenames));
         vm.add_loader(loader, 11);
     }
 

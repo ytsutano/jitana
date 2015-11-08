@@ -30,8 +30,8 @@ namespace jitana {
     /// A method graph vertex property.
     struct method_vertex_property {
         dex_method_hdl hdl;
-        dex_type_hdl class_hdl;
         jvm_method_hdl jvm_hdl;
+        dex_type_hdl class_hdl;
         dex_access_flags access_flags;
         std::vector<method_param> params;
         insn_graph insns;
