@@ -41,7 +41,10 @@ dex_file::dex_file(dex_file_hdl hdl, std::string filename)
     // Open the file.
     file_->fd = open(file_->name.c_str(), O_RDONLY, 0);
     if (file_->fd == -1) {
-        throw std::runtime_error("failed to open the DEX file");
+        std::stringstream ss;
+        ss << "failed to open the DEX file ";
+        ss << file_->name;
+        throw std::runtime_error(ss.str());
     }
 
     // Get the file length.
@@ -72,7 +75,10 @@ void dex_file::load_dex_file()
         dex_begin_ = file_->begin + opt_header_->dex_off;
     }
     else {
-        throw std::runtime_error("unsupported file type");
+        std::stringstream ss;
+        ss << "unsupported file type found in ";
+        ss << file_->name;
+        throw std::runtime_error(ss.str());
     }
 
     // Set the pointer to the DEX header.
@@ -446,7 +452,10 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                     // Same entry found: override.
                     auto super_v = lookup_method_vertex(*it, mg);
                     if (!super_v) {
-                        throw std::runtime_error("invalid DEX file.");
+                        std::stringstream ss;
+                        ss << "invalid DEX file: ";
+                        ss << file_->name;
+                        throw std::runtime_error(ss.str());
                     }
                     method_super_edge_property eprop;
                     eprop.interface = false; // FIXME.
@@ -686,7 +695,10 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
         // Find the starting vertex.
         auto start_v = lookup_insn_vertex(raw_tries[i].start_addr, g);
         if (!start_v) {
-            throw std::runtime_error("invalid try-catch block (start_off)");
+            std::stringstream ss;
+            ss << "invalid try-catch block (start_off) in ";
+            ss << file_->name;
+            throw std::runtime_error(ss.str());
         }
         tc.first = *start_v;
 
@@ -715,7 +727,10 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
             auto catch_off = tc_reader.get_uleb128();
             auto catch_v = lookup_insn_vertex(catch_off, g);
             if (!catch_v) {
-                throw std::runtime_error("invalid try-catch block (catch)");
+                std::stringstream ss;
+                ss << "invalid try-catch block (catch) in ";
+                ss << file_->name;
+                throw std::runtime_error(ss.str());
             }
             tc.hdls.emplace_back(catch_type_hdl, *catch_v);
         }
@@ -724,7 +739,10 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
             auto catch_off = tc_reader.get_uleb128();
             auto catch_v = lookup_insn_vertex(catch_off, g);
             if (!catch_v) {
-                throw std::runtime_error("invalid try-catch block (catch_all)");
+                std::stringstream ss;
+                ss << "invalid try-catch block (catch_all) in ";
+                ss << file_->name;
+                throw std::runtime_error(ss.str());
             }
             tc.catch_all = *catch_v;
         }

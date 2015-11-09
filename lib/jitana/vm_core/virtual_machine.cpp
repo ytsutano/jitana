@@ -263,7 +263,10 @@ bool virtual_machine::load_all_classes(const class_loader_hdl& loader_hdl)
     // Find the starting class loader vertex.
     auto lv = find_loader_vertex(loader_hdl, loaders_);
     if (!lv) {
-        throw std::runtime_error("invalid loader handle");
+        std::stringstream ss;
+        ss << "invalid loader handle ";
+        ss << loader_hdl;
+        throw std::runtime_error(ss.str());
     }
 
     return loaders_[*lv].loader.load_all_classes(*this);
@@ -275,7 +278,10 @@ jvm_type_hdl virtual_machine::jvm_hdl(const dex_type_hdl& type_hdl) const
 
     auto lv = find_loader_vertex(loader_hdl, loaders_);
     if (!lv) {
-        throw std::runtime_error("invalid type handle");
+        std::stringstream ss;
+        ss << "invalid type handle ";
+        ss << type_hdl;
+        throw std::runtime_error(ss.str());
     }
 
     return {loader_hdl, loaders_[*lv].loader.descriptor(type_hdl)};
@@ -287,7 +293,10 @@ jvm_method_hdl virtual_machine::jvm_hdl(const dex_method_hdl& method_hdl) const
 
     auto lv = find_loader_vertex(loader_hdl, loaders_);
     if (!lv) {
-        throw std::runtime_error("invalid method handle");
+        std::stringstream ss;
+        ss << "invalid method handle ";
+        ss << method_hdl;
+        throw std::runtime_error(ss.str());
     }
 
     const auto& loader = loaders_[*lv].loader;
@@ -301,7 +310,10 @@ jvm_field_hdl virtual_machine::jvm_hdl(const dex_field_hdl& field_hdl) const
 
     auto lv = find_loader_vertex(loader_hdl, loaders_);
     if (!lv) {
-        throw std::runtime_error("invalid field handle");
+        std::stringstream ss;
+        ss << "invalid field handle ";
+        ss << field_hdl;
+        throw std::runtime_error(ss.str());
     }
 
     const auto& loader = loaders_[*lv].loader;
@@ -347,7 +359,9 @@ namespace {
         {
             auto fv = vm_.find_field(x.const_val, true);
             if (!fv) {
-                throw std::runtime_error("failed to find field");
+                std::stringstream ss;
+                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
             }
 
             // Try to load <clinit>.
@@ -366,7 +380,9 @@ namespace {
         {
             auto fv = vm_.find_field(x.const_val, true);
             if (!fv) {
-                throw std::runtime_error("failed to find field");
+                std::stringstream ss;
+                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
             }
 
             // Try to load <clinit>.
