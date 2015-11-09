@@ -27,6 +27,7 @@
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
 #include <jitana/analysis/data_flow.hpp>
+#include <jitana/analysis/points_to.hpp>
 
 void write_graphs(const jitana::virtual_machine& vm);
 
@@ -84,10 +85,59 @@ void test_virtual_machine()
         vm.add_loader(loader, 11);
     }
 
+    {
+        const auto& filenames = {"../dex/small_tests/03/03.dex"};
+        jitana::class_loader loader(77, "SmallTest03", begin(filenames),
+                                    end(filenames));
+        vm.add_loader(loader, 11);
+    }
+
+#if 0
     vm.load_all_classes(66);
     // vm.find_class({33, "LTest;"}, true);
     vm.find_class({22, "Lcom/fasterxml/jackson/core/base/ParserMinimalBase;"},
                   true);
+#else
+
+#if 1
+    jitana::jvm_method_hdl mh = {{77, "LTest;"}, "main([Ljava/lang/String;)V"};
+#else
+    jitana::jvm_method_hdl mh
+            = {{44, "Ljp/bio100/android/superdepth/SuperDepth;"},
+               "onCreate(Landroid/os/Bundle;)V"};
+#endif
+    if (auto mv = vm.find_method(mh, true)) {
+        vm.load_recursive(*mv);
+
+        // Compute the call graph.
+        jitana::add_call_graph_edges(vm);
+
+        // Compute the data-flow.
+        std::for_each(vertices(vm.methods()).first,
+                      vertices(vm.methods()).second,
+                      [&](const jitana::method_vertex_descriptor& v) {
+                          add_data_flow_edges(vm.methods()[v].insns);
+                      });
+
+        std::cout << "Making pointer assignment graph for " << mh << "...";
+        std::cout << std::endl;
+
+        {
+            jitana::pointer_assignment_graph pag;
+            jitana::contextual_call_graph cg;
+
+            // Apply points-to analysis.
+            jitana::update_points_to_graphs(pag, cg, vm, *mv);
+
+            std::cout << "Writing PAG..." << std::endl;
+            std::ofstream ofs("output/pag.dot");
+            jitana::write_graphviz_pointer_assignment_graph(ofs, pag);
+        }
+    }
+    else {
+        throw std::runtime_error("failed to find the method");
+    }
+#endif
 
     // Compute the call graph.
     jitana::add_call_graph_edges(vm);
