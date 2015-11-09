@@ -53,9 +53,9 @@ namespace jitana {
                                     field_vertex_property, field_edge_property,
                                     field_graph_property>;
 
-    template <typename MethodGraph>
+    template <typename FieldGraph>
     inline boost::optional<field_vertex_descriptor>
-    lookup_field_vertex(const dex_field_hdl& hdl, const MethodGraph& g)
+    lookup_field_vertex(const dex_field_hdl& hdl, const FieldGraph& g)
     {
         const auto& lut = g[boost::graph_bundle].hdl_to_vertex;
         auto it = lut.find(hdl);
@@ -65,9 +65,9 @@ namespace jitana {
         return boost::none;
     }
 
-    template <typename MethodGraph>
+    template <typename FieldGraph>
     inline boost::optional<field_vertex_descriptor>
-    lookup_field_vertex(const jvm_field_hdl& hdl, const MethodGraph& g)
+    lookup_field_vertex(const jvm_field_hdl& hdl, const FieldGraph& g)
     {
         const auto& lut = g[boost::graph_bundle].jvm_hdl_to_vertex;
         auto it = lut.find(hdl);
