@@ -284,6 +284,14 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 // Inherit the static_fields from the superclass.
                 static_fields = vm.classes()[*super_v].static_fields;
                 static_offset = vm.classes()[*super_v].static_size;
+
+                // Register the JVM handles.
+                for (const auto& field_hdl : static_fields) {
+                    auto fv = lookup_field_vertex(field_hdl, fg);
+                    auto jvm_f_hdl = fg[*fv].jvm_hdl;
+                    jvm_f_hdl.type_hdl = jvm_hdl;
+                    fg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_f_hdl] = *fv;
+                }
             }
 
             auto static_field_idx = dex_field_idx{0};
@@ -323,6 +331,14 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 // Inherit the instance_fields from the superclass.
                 instance_fields = vm.classes()[*super_v].instance_fields;
                 instance_offset = vm.classes()[*super_v].instance_size;
+
+                // Register the JVM handles.
+                for (const auto& field_hdl : instance_fields) {
+                    auto fv = lookup_field_vertex(field_hdl, fg);
+                    auto jvm_f_hdl = fg[*fv].jvm_hdl;
+                    jvm_f_hdl.type_hdl = jvm_hdl;
+                    fg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_f_hdl] = *fv;
+                }
             }
 
             auto instance_field_idx = dex_field_idx{0};
@@ -358,6 +374,25 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
 
         // Create direct methods.
         {
+            if (super_v) {
+                // Inherit the dtable from the superclass.
+                const auto& super_dtable = vm.classes()[*super_v].dtable;
+                dtable = super_dtable;
+                dtable.reserve(super_dtable.size() + virtual_methods_size);
+
+                // Register the JVM handles.
+                for (const auto& field_hdl : dtable) {
+                    auto mv = lookup_method_vertex(field_hdl, mg);
+                    auto jvm_f_hdl = mg[*mv].jvm_hdl;
+                    jvm_f_hdl.type_hdl = jvm_hdl;
+                    mg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_f_hdl] = *mv;
+                }
+            }
+            else {
+                // No superclass: start with an empty dtable.
+                dtable.reserve(virtual_methods_size);
+            }
+
             auto direct_method_idx = dex_method_idx{0};
             for (size_t i = 0; i < direct_methods_size; ++i) {
                 direct_method_idx += reader.get_uleb128();
@@ -402,6 +437,14 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 const auto& super_vtable = vm.classes()[*super_v].vtable;
                 vtable = super_vtable;
                 vtable.reserve(super_vtable.size() + virtual_methods_size);
+
+                // Register the JVM handles.
+                for (const auto& field_hdl : vtable) {
+                    auto mv = lookup_method_vertex(field_hdl, mg);
+                    auto jvm_f_hdl = mg[*mv].jvm_hdl;
+                    jvm_f_hdl.type_hdl = jvm_hdl;
+                    mg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_f_hdl] = *mv;
+                }
             }
             else {
                 // No superclass: start with an empty vtable.
