@@ -160,6 +160,7 @@ namespace jitana {
         bool sets_register_inplace() const
         {
             switch (op_) {
+            case opcode::op_check_cast:
             case opcode::op_add_int_2addr:
             case opcode::op_sub_int_2addr:
             case opcode::op_mul_int_2addr:
