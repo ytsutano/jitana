@@ -171,22 +171,7 @@ void dex_file::load_dex_file()
                 }
             }
 
-            std::sort(begin(code_off_lut_), end(code_off_lut_)); /*,
-                       [&](const std::pair<uint32_t, dex_method_idx>& x,
-                           const std::pair<uint32_t, dex_method_idx>& y) {
-                           return x.first < y.first;
-                       });*/
-
-#if 0
-            // TODO: Remove.
-            if (filename()
-                == "odex/data@app@com.example.dragon-1.apk@classes.dex") {
-                for (const auto& p : code_off_lut_) {
-                    std::cout << filename() << " " << p.first << " => "
-                              << p.second << "\n";
-                }
-            }
-#endif
+            std::sort(begin(code_off_lut_), end(code_off_lut_));
         }
     }
 }
@@ -506,28 +491,6 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 }
             }
         }
-
-#if 0
-        // Print.
-        {
-            auto print_fields = [&](const auto& fields) {
-                for (const auto& h : fields) {
-                    dex_field_idx idx = h.idx;
-                    std::cout << h << ": ";
-                    // std::cout << ids_.descriptor(idx) << " ";
-                    // std::cout << ids_.name(idx) << "\n";
-                }
-            };
-            std::cout << "-------------------------------------------------\n";
-            std::cout << descriptor << "\n";
-            std::cout << "-------------------------------------------------\n";
-            print_fields(instance_fields);
-            std::cout << "- - - - - - - - - - - - - - - - - - - - - - - - -\n";
-            print_fields(static_fields);
-            std::cout << "-------------------------------------------------\n";
-            std::cout << "\n";
-        }
-#endif
     }
 
     // Create a vertex in the class graph.
@@ -1328,7 +1291,6 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                       {hdl(), raw.idx_c});
             }
             break;
-#if 1
         case opcode::op_iget_quick:
         case opcode::op_iget_wide_quick:
         case opcode::op_iget_object_quick:
@@ -1342,7 +1304,6 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                             raw.idx_c);
             }
             break;
-#endif
         case opcode::op_iput:
         case opcode::op_iput_wide:
         case opcode::op_iput_object:
@@ -1370,7 +1331,6 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                       {hdl(), raw.idx_c});
             }
             break;
-#if 1
         case opcode::op_iput_quick:
         case opcode::op_iput_wide_quick:
         case opcode::op_iput_object_quick:
@@ -1384,7 +1344,6 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                             raw.idx_c);
             }
             break;
-#endif
         case opcode::op_sget:
         case opcode::op_sget_wide:
         case opcode::op_sget_object:
@@ -1527,7 +1486,6 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
 #endif
             }
             break;
-#if 1
         case opcode::op_execute_inline_range:
         case opcode::op_invoke_virtual_quick_range:
         case opcode::op_invoke_super_quick_range:
@@ -1557,7 +1515,6 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                 prop.insn = insn_invoke_quick(op, regs, raw.idx_b);
             }
             break;
-#endif
         case opcode::op_neg_int:
         case opcode::op_not_int:
         case opcode::op_neg_long:
@@ -1801,19 +1758,12 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                                 {raw.imm_c});
             }
             break;
-#if 1
         case opcode::op_throw_verification_error:
             // +throw-verification-error AA kind@BBBB
             {
-                // const auto& raw = raw_insn->fmt_20bc;
-                // const uint8_t err           = raw.err_a;
-                // const TypeIdx type_idx = raw.idx_b;
-                //
-                // insn = new ThrowVerificationError(offset, op, err, type_idx);
                 prop.insn = insn_nop(opcode::op_nop, {{}}, {});
             }
             break;
-#endif
         default:
             // Unknown instruction encountered.
             prop.insn = insn_nop(opcode::op_nop, {{}}, {});
@@ -1879,8 +1829,6 @@ void dex_file::parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
     // Debug virtual machine registers.
     uint16_t address = 0;
     uint16_t line = line_start;
-    // bool prologue_end = false;
-    // bool epilogue_begin = false;
     bool executing = true;
 
     // Execute the bytecode.
@@ -1902,111 +1850,40 @@ void dex_file::parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
             break;
         case dbg_opcode::start_local:
             // Introduce a local variable at the current address.
-            {
-#if 0
-                auto register_num = reader.get_uleb128();
-                dex_string_idx name_idx = reader.get_uleb128p1();
-                dex_type_idx type_idx = reader.get_uleb128p1();
-
-                std::printf("[%3u] ", address);
-                std::cout << "local variable " << register_num << ":";
-                if (name_idx.valid()) {
-                    std::cout << " name=" << ids_.c_str(name_idx);
-                }
-                if (type_idx.valid()) {
-                    std::cout << " type=" << ids_.descriptor(type_idx);
-                }
-                std::cout << "\n";
-#endif
-            }
             break;
         case dbg_opcode::start_local_extended:
-            // Introduce a local with a type signature at the current
-            // address.
-            {
-#if 0
-                auto register_num = reader.get_uleb128();
-                dex_string_idx name_idx = reader.get_uleb128p1();
-                dex_type_idx type_idx = reader.get_uleb128p1();
-                dex_string_idx sig_idx = reader.get_uleb128p1();
-
-                std::printf("[%3u] ", address);
-                std::cout << "local variable " << register_num << ":";
-                if (name_idx.valid()) {
-                    std::cout << " name=" << ids_.c_str(name_idx);
-                }
-                if (type_idx.valid()) {
-                    std::cout << " type=" << ids_.descriptor(type_idx);
-                }
-                if (sig_idx.valid()) {
-                    std::cout << " sig=" << ids_.c_str(sig_idx);
-                }
-                std::cout << "\n";
-#endif
-            }
+            // Introduce a local with a type signature at the current address.
             break;
         case dbg_opcode::end_local:
             // Mark the currently-live local variable as out of scope at the
             // current address.
-            {
-#if 0
-                auto register_num = reader.get_uleb128();
-                std::printf("[%3u] ", address);
-                std::cout << "out-of-scope register " << register_num << "\n";
-#endif
-            }
             break;
         case dbg_opcode::restart_local:
-            // Re-introduce a local variable at the current address. The
-            // name
+            // Re-introduce a local variable at the current address. The name
             // and type are the same as the last local that was live in the
             // specified register.
-            {
-#if 0
-                auto register_num = reader.get_uleb128();
-                std::printf("[%3u] ", address);
-                std::cout << "re-introducing register " << register_num << "\n";
-#endif
-            }
             break;
         case dbg_opcode::set_prologue_end:
-            // Set the prologue_end state machine register, indicating that
-            // the
-            // next position entry that is added should be considered the
-            // end of
-            // a method prologue (an appropriate place for a method
-            // breakpoint).
+            // Set the prologue_end state machine register, indicating that the
+            // next position entry that is added should be considered the end of
+            // a method prologue (an appropriate place for a method breakpoint).
             // The prologue_end register is cleared by any special (>= 0x0a)
             // opcode.
-            // prologue_end = true;
             break;
         case dbg_opcode::set_epilogue_begin:
-            // Set the epilogue_begin state machine register, indicating
-            // that
-            // the next position entry that is added should be considered
-            // the
-            // beginning of a method epilogue (an appropriate place to
-            // suspend
+            // Set the epilogue_begin state machine register, indicating that
+            // the next position entry that is added should be considered the
+            // beginning of a method epilogue (an appropriate place to suspend
             // execution before method exit). The epilogue_begin register is
             // cleared by any special (>= 0x0a) opcode.
-            // epilogue_begin = true;
             break;
         case dbg_opcode::set_file:
-            // All subsequent line number entries make reference to this
-            // source
-            // file name, instead of the default name specified in
-            // code_item.
+            // All subsequent line number entries make reference to this source
+            // file name, instead of the default name specified in code_item.
             {
-                // For now, we ignore set_file. So invalidate the line
-                // numbers
+                // For now, we ignore set_file. So invalidate the line numbers
                 // from now on.
                 line_num_valid = false;
-
-#if 0
-                dex_string_idx name_idx = reader.get_uleb128p1();
-                std::printf("[%3u] ", address);
-                std::cout << " filename=" << ids_.c_str(name_idx);
-#endif
             }
             break;
         default:
@@ -2018,12 +1895,6 @@ void dex_file::parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
                 uint8_t adjusted_op = static_cast<uint8_t>(op) - 0x0a;
                 line += line_base + (adjusted_op % line_range);
                 address += (adjusted_op / line_range);
-
-                // Clear the flags.
-                // prologue_end = false;
-                // epilogue_begin = false;
-
-                // std::printf("[%3u] line=%u\n", address, line);
 
                 if (line_num_valid) {
                     if (const auto v = lookup_insn_vertex(address, g)) {

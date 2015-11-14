@@ -122,7 +122,6 @@ namespace jitana {
         write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
     }
 
-#if 1
     /// Writes a method graph to the stream in the Graphviz format.
     template <typename MethodGraph>
     inline void write_graphviz_method_graph(std::ostream& os,
@@ -168,7 +167,6 @@ namespace jitana {
 
         write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
     }
-#endif
 
     /// Writes a field graph to the stream in the Graphviz format.
     template <typename FieldGraph>
@@ -276,7 +274,7 @@ namespace jitana {
             os << "\\n";
             os << gprop.jvm_hdl.type_hdl.descriptor << "\n"
                << gprop.jvm_hdl.unique_name << "\";\n";
-#if 1
+
             // Print exeception handlers.
             for (const auto& tc : gprop.try_catches) {
                 auto print_try_block_seq = [&]() {
@@ -301,7 +299,6 @@ namespace jitana {
                     os << " [color=darkgreen, style=dotted];\n";
                 }
             }
-#endif
         };
 
         write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
