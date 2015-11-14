@@ -287,7 +287,7 @@ int main()
 
 ## License
 
-* TBD.
+* See the LICENSE.md file for license rights and limitations (ISC).
 
 ## External Links
 
