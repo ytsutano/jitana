@@ -421,10 +421,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 mg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_m_hdl] = mv;
 
                 // Load the instructions.
-                mg[mv].insns = make_insn_graph(mg[mv], def, code_off);
-                auto& igprop = mg[mv].insns[boost::graph_bundle];
-                igprop.hdl = dex_m_hdl;
-                igprop.jvm_hdl = jvm_m_hdl;
+                mg[mv].insns = make_insn_graph(mg[mv], def, code_off, dex_m_hdl,
+                                               jvm_m_hdl);
 
                 dtable.push_back(dex_m_hdl);
             }
@@ -479,10 +477,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 mg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_m_hdl] = mv;
 
                 // Load the instructions.
-                mg[mv].insns = make_insn_graph(mvprop, def, code_off);
-                auto& igprop = mg[mv].insns[boost::graph_bundle];
-                igprop.hdl = dex_m_hdl;
-                igprop.jvm_hdl = jvm_m_hdl;
+                mg[mv].insns = make_insn_graph(mvprop, def, code_off, dex_m_hdl,
+                                               jvm_m_hdl);
 
                 auto it = std::find_if(begin(vtable), vtab_inherited_end,
                                        [&](const dex_method_hdl& h) {
@@ -634,9 +630,13 @@ dex_file::find_method_hdl(uint32_t dex_off) const
 
 insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                                      const detail::dex_class_def& class_def,
-                                     uint32_t code_off) const
+                                     uint32_t code_off,
+                                     const dex_method_hdl& dex_m_hdl,
+                                     const jvm_method_hdl& jvm_m_hdl) const
 {
     insn_graph g;
+    g[boost::graph_bundle].hdl = dex_m_hdl;
+    g[boost::graph_bundle].jvm_hdl = jvm_m_hdl;
     if (code_off == 0) {
         g[boost::graph_bundle].registers_size = 0;
         g[boost::graph_bundle].ins_size = 0;
@@ -727,7 +727,9 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
     // Create an exit instruction.
     auto exit_v = add_vertex(g);
     g[exit_v].off = std::numeric_limits<decltype(g[exit_v].off)>::max();
-    g[exit_v].insn = insn_exit();
+    g[exit_v].insn = (jvm_m_hdl.return_descriptor()[0] != 'V')
+            ? insn_exit(opcode::op_nop, {{register_idx::idx_result}}, {})
+            : insn_exit(opcode::op_nop, {{register_idx::idx_unknown}}, {});
 
     // Parse the try-catch block.
     for (size_t i = 0; i < raw_header->tries_size; ++i) {

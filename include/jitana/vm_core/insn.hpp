@@ -3,7 +3,6 @@
 
 #include "jitana/vm_core/hdl.hpp"
 #include "jitana/vm_core/idx.hpp"
-#include "jitana/vm_core/variable.hpp"
 #include "jitana/vm_core/insn_info.hpp"
 #include "jitana/vm_core/opcode.hpp"
 #include "jitana/algorithm/unique_sort.hpp"
@@ -60,32 +59,31 @@ namespace jitana {
                     && regs.back().valid() && regs.front() <= regs.back();
         }
 
-        friend std::vector<variable> defs(const insn_base& x)
+        friend std::vector<register_idx> defs(const insn_base& x)
         {
             const auto& insn_info = info(x.op);
-            std::vector<variable> result;
+            std::vector<register_idx> result;
 
             if (RegSize > 0 && insn_info.sets_register()
                 && !insn_info.sets_result()) {
-                result.push_back(make_register_variable(x.regs[0]));
+                result.push_back(x.regs[0]);
             }
             if (insn_info.sets_result()) {
-                result.push_back(
-                        make_register_variable(register_idx::idx_result));
+                result.push_back(register_idx::idx_result);
             }
             unique_sort(result);
             return result;
         }
 
-        friend std::vector<variable> uses(const insn_base& x)
+        friend std::vector<register_idx> uses(const insn_base& x)
         {
-            std::vector<variable> result;
+            std::vector<register_idx> result;
             const auto& regs = x.regs;
             if (x.is_regs_range()) {
                 result.resize(static_cast<int32_t>(regs.back() - regs.front()));
                 std::iota(begin(result), end(result), regs.front());
             }
-            else if (RegSize > 0) {
+            if (RegSize > 0) {
                 auto start = begin(regs);
                 const auto& insn_info = info(x.op);
                 if (insn_info.sets_register() && !insn_info.sets_result()
@@ -93,8 +91,7 @@ namespace jitana {
                     ++start;
                 }
                 result.reserve(RegSize);
-                std::copy_if(start, end(regs), std::back_inserter(result),
-                             [](const variable& var) { return var.valid(); });
+                std::copy(start, end(regs), std::back_inserter(result));
                 unique_sort(result);
             }
             return result;
@@ -157,7 +154,7 @@ namespace jitana {
     struct insn_const_arith_op   : insn_base<2, int16_t       > { using insn_base::insn_base; };
 
     struct insn_entry : insn_base<5, no_const_val> { using insn_base::insn_base; };
-    struct insn_exit  : insn_base<0, no_const_val> { using insn_base::insn_base; };
+    struct insn_exit  : insn_base<1, no_const_val> { using insn_base::insn_base; };
     // clang-format on
 
     inline std::ostream& operator<<(std::ostream& os, const insn_entry& x)
@@ -167,12 +164,18 @@ namespace jitana {
 
     inline std::ostream& operator<<(std::ostream& os, const insn_exit& x)
     {
-        return os << "EXIT";
+        os << "EXIT";
+        for (const auto& r : x.regs) {
+            if (r.valid()) {
+                os << " " << r;
+            }
+        }
+        return os;
     }
 
-    inline std::vector<variable> defs(const insn_entry& x)
+    inline std::vector<register_idx> defs(const insn_entry& x)
     {
-        std::vector<variable> result;
+        std::vector<register_idx> result;
         if (x.is_regs_range()) {
             const auto& regs = x.regs;
             result.resize(static_cast<int32_t>(regs.back() - regs.front() + 1));
@@ -181,34 +184,9 @@ namespace jitana {
         return result;
     }
 
-    inline std::vector<variable> uses(const insn_entry& x)
+    inline std::vector<register_idx> uses(const insn_entry& x)
     {
         return {};
-    }
-
-    inline std::vector<variable> defs(const insn_iput& x)
-    {
-        return {make_instance_field_variable(x.regs[1], x.const_val.idx)};
-    }
-
-    inline std::vector<variable> uses(const insn_iget& x)
-    {
-        std::vector<variable> result;
-        result.push_back(make_register_variable(x.regs[1]));
-        result.push_back(
-                make_instance_field_variable(x.regs[1], x.const_val.idx));
-        unique_sort(result);
-        return result;
-    }
-
-    inline std::vector<variable> defs(const insn_sput& x)
-    {
-        return {make_static_field_variable(x.const_val.idx)};
-    }
-
-    inline std::vector<variable> uses(const insn_sget& x)
-    {
-        return {make_static_field_variable(x.const_val.idx)};
     }
 
     // clang-format off
@@ -291,32 +269,32 @@ namespace jitana {
 
     namespace detail {
         struct apply_defs
-                : public boost::static_visitor<std::vector<variable>> {
+                : public boost::static_visitor<std::vector<register_idx>> {
             template <typename T>
-            std::vector<variable> operator()(const T& x) const
+            std::vector<register_idx> operator()(const T& x) const
             {
                 return defs(x);
             }
         };
     }
 
-    inline std::vector<variable> defs(const insn& x)
+    inline std::vector<register_idx> defs(const insn& x)
     {
         return boost::apply_visitor(detail::apply_defs(), x);
     }
 
     namespace detail {
         struct apply_uses
-                : public boost::static_visitor<std::vector<variable>> {
+                : public boost::static_visitor<std::vector<register_idx>> {
             template <typename T>
-            std::vector<variable> operator()(const T& x) const
+            std::vector<register_idx> operator()(const T& x) const
             {
                 return uses(x);
             }
         };
     }
 
-    inline std::vector<variable> uses(const insn& x)
+    inline std::vector<register_idx> uses(const insn& x)
     {
         return boost::apply_visitor(detail::apply_uses(), x);
     }

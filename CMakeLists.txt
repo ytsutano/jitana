@@ -78,7 +78,6 @@ add_library(jitana
     include/jitana/vm_core/insn.hpp
     include/jitana/vm_core/insn_info.hpp
     include/jitana/vm_core/opcode.hpp
-    include/jitana/vm_core/variable.hpp
     include/jitana/vm_core/virtual_machine.hpp
     include/jitana/vm_graph/class_graph.hpp
     include/jitana/vm_graph/edge_filtered_graph.hpp

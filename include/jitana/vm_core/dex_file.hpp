@@ -200,7 +200,9 @@ namespace jitana {
 
         insn_graph make_insn_graph(method_vertex_property& mvprop,
                                    const detail::dex_class_def& class_def,
-                                   uint32_t code_off) const;
+                                   uint32_t code_off,
+                                   const dex_method_hdl& dex_m_hdl,
+                                   const jvm_method_hdl& jvm_m_hdl) const;
         void parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
                               uint32_t debug_info_off) const;
 

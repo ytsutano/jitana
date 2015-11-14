@@ -3,7 +3,6 @@
 
 #include "jitana/vm_core/virtual_machine.hpp"
 #include "jitana/vm_core/insn_info.hpp"
-#include "jitana/vm_core/variable.hpp"
 #include "jitana/vm_graph/edge_filtered_graph.hpp"
 #include "jitana/algorithm/monotonic_dataflow.hpp"
 
@@ -17,14 +16,14 @@
 
 namespace jitana {
     struct insn_data_flow_edge_property {
-        variable var;
+        register_idx reg;
     };
 
     inline void print_graphviz_attr(std::ostream& os,
                                     const insn_data_flow_edge_property& prop)
     {
         os << "color=red, fontcolor=red";
-        os << ", label=\"" << prop.var << "\"";
+        os << ", label=\"" << prop.reg << "\"";
     }
 
     inline void add_data_flow_edges(virtual_machine& vm, insn_graph& g)
@@ -34,56 +33,14 @@ namespace jitana {
         }
 
         // Construct a list of defs and uses for each instruction.
-        std::vector<std::vector<variable>> defs_map(num_vertices(g));
-        std::vector<std::vector<variable>> uses_map(num_vertices(g));
+        std::vector<std::vector<register_idx>> defs_map(num_vertices(g));
+        std::vector<std::vector<register_idx>> uses_map(num_vertices(g));
         for (const auto& v : boost::make_iterator_range(vertices(g))) {
             defs_map[v] = defs(g[v].insn);
             uses_map[v] = uses(g[v].insn);
         }
 
-        // Compute defs for entry instruction.
-        {
-            auto& entry_defs = defs_map[0];
-            entry_defs.clear();
-
-            // Put all the uses in the method to the defs.
-            for (const auto& v : boost::make_iterator_range(vertices(g))) {
-                entry_defs.insert(end(entry_defs), begin(uses_map[v]),
-                                  end(uses_map[v]));
-            }
-            unique_sort(entry_defs);
-        }
-
-        // Compute uses for exit instruction.
-        {
-            auto& exit_uses = uses_map[num_vertices(g) - 1];
-            exit_uses.clear();
-
-            // Put all the defs in the method to the uses.
-            for (const auto& v : boost::make_iterator_range(vertices(g))) {
-                exit_uses.insert(end(exit_uses), begin(defs_map[v]),
-                                 end(defs_map[v]));
-            }
-            unique_sort(exit_uses);
-
-            // Remove registers from uses of the exit instruction.
-            auto e = remove_if(begin(exit_uses), end(exit_uses),
-                               [&](const variable& v) {
-                                   return v.kind() == variable::kind_register;
-                               });
-            exit_uses.erase(e, end(exit_uses));
-
-            // Register vR may be used by the exit instruction if the return
-            // type is not void.
-            char desc = g[boost::graph_bundle].jvm_hdl.return_descriptor()[0];
-            if (desc != 'V') {
-                auto reg_vr = make_register_variable(register_idx::idx_result);
-                exit_uses.push_back(reg_vr);
-                unique_sort(exit_uses);
-            }
-        }
-
-        using elem = std::pair<insn_vertex_descriptor, variable>;
+        using elem = std::pair<insn_vertex_descriptor, register_idx>;
         using set = std::vector<elem>;
         auto flow_func
                 = [&](insn_vertex_descriptor v, const set& inset, set& outset) {
@@ -124,7 +81,7 @@ namespace jitana {
                     && std::binary_search(begin(uses_map[v]), end(uses_map[v]),
                                           e.second)) {
                     insn_data_flow_edge_property edge_prop;
-                    edge_prop.var = e.second;
+                    edge_prop.reg = e.second;
                     add_edge(e.first, v, edge_prop, g);
                 }
             }
