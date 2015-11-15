@@ -43,24 +43,39 @@ virtual_machine::find_class(const jvm_type_hdl& hdl, bool try_load)
     }
 
     // Find the class.
-    auto found_class = boost::optional<class_vertex_descriptor>{};
-    auto color_map = boost::vector_property_map<int>{
-            static_cast<unsigned>(num_vertices(loaders_))};
-    auto term_func = [&](loader_vertex_descriptor v, const loader_graph& g) {
-        found_class = try_load
-                ? g[v].loader.load_class(*this, hdl.descriptor)
-                : g[v].loader.lookup_class(*this, hdl.descriptor);
-        return found_class;
-    };
-    boost::depth_first_visit(loaders_, *lv, boost::default_dfs_visitor{},
-                             color_map, term_func);
+    struct class_finder : boost::default_dfs_visitor {
+        virtual_machine& vm;
+        const jvm_type_hdl& hdl;
+        bool try_load;
 
-    if (found_class) {
-        // Remember the initiating handle.
-        classes_[boost::graph_bundle].jvm_hdl_to_vertex[hdl] = *found_class;
+        class_finder(virtual_machine& vm, const jvm_type_hdl& hdl,
+                     bool try_load)
+                : vm(vm), hdl(hdl), try_load(try_load)
+        {
+        }
+
+        void discover_vertex(const loader_vertex_descriptor& v,
+                             const loader_graph& g)
+        {
+            if (auto found_class = try_load
+                        ? g[v].loader.load_class(vm, hdl.descriptor)
+                        : g[v].loader.lookup_class(vm, hdl.descriptor)) {
+                throw * found_class;
+            }
+        }
+    } vis(*this, hdl, try_load);
+    boost::vector_property_map<int> color_map(
+            static_cast<unsigned>(num_vertices(loaders_)));
+    try {
+        boost::depth_first_visit(loaders_, *lv, vis, color_map);
+    }
+    catch (const class_vertex_descriptor& cv) {
+        // Class found: remember the initiating handle, and return.
+        classes_[boost::graph_bundle].jvm_hdl_to_vertex[hdl] = cv;
+        return cv;
     }
 
-    return found_class;
+    return boost::none;
 }
 
 boost::optional<class_vertex_descriptor>
@@ -110,23 +125,36 @@ virtual_machine::find_method(const jvm_method_hdl& hdl, bool try_load)
     }
 
     // Find the method.
-    auto found_method = boost::optional<method_vertex_descriptor>{};
-    auto color_map = boost::vector_property_map<int>{
-            static_cast<unsigned>(num_vertices(loaders_))};
-    auto term_func = [&](loader_vertex_descriptor v, const loader_graph& g) {
-        found_method = g[v].loader.lookup_method(*this, hdl.type_hdl.descriptor,
-                                                 hdl.unique_name);
-        return found_method;
-    };
-    boost::depth_first_visit(loaders_, *lv, boost::default_dfs_visitor(),
-                             color_map, term_func);
+    struct method_finder : boost::default_dfs_visitor {
+        virtual_machine& vm;
+        const jvm_method_hdl& hdl;
 
-    if (found_method) {
-        // Remember the initiating handle.
-        methods_[boost::graph_bundle].jvm_hdl_to_vertex[hdl] = *found_method;
+        method_finder(virtual_machine& vm, const jvm_method_hdl& hdl)
+                : vm(vm), hdl(hdl)
+        {
+        }
+
+        void discover_vertex(const loader_vertex_descriptor& v,
+                             const loader_graph& g)
+        {
+            if (auto found_method = g[v].loader.lookup_method(
+                        vm, hdl.type_hdl.descriptor, hdl.unique_name)) {
+                throw * found_method;
+            }
+        }
+    } vis(*this, hdl);
+    boost::vector_property_map<int> color_map(
+            static_cast<unsigned>(num_vertices(loaders_)));
+    try {
+        boost::depth_first_visit(loaders_, *lv, vis, color_map);
+    }
+    catch (const method_vertex_descriptor& mv) {
+        // Method found: remember the initiating handle, and return.
+        methods_[boost::graph_bundle].jvm_hdl_to_vertex[hdl] = mv;
+        return mv;
     }
 
-    return found_method;
+    return boost::none;
 }
 
 boost::optional<method_vertex_descriptor>
@@ -176,23 +204,36 @@ virtual_machine::find_field(const jvm_field_hdl& hdl, bool try_load)
     }
 
     // Find the field.
-    auto found_field = boost::optional<field_vertex_descriptor>{};
-    auto color_map = boost::vector_property_map<int>{
-            static_cast<unsigned>(num_vertices(loaders_))};
-    auto term_func = [&](loader_vertex_descriptor v, const loader_graph& g) {
-        found_field = g[v].loader.lookup_field(*this, hdl.type_hdl.descriptor,
-                                               hdl.unique_name);
-        return found_field;
-    };
-    boost::depth_first_visit(loaders_, *lv, boost::default_dfs_visitor(),
-                             color_map, term_func);
+    struct field_finder : boost::default_dfs_visitor {
+        virtual_machine& vm;
+        const jvm_field_hdl& hdl;
 
-    if (found_field) {
-        // Remember the initiating handle.
-        fields_[boost::graph_bundle].jvm_hdl_to_vertex[hdl] = *found_field;
+        field_finder(virtual_machine& vm, const jvm_field_hdl& hdl)
+                : vm(vm), hdl(hdl)
+        {
+        }
+
+        void discover_vertex(const loader_vertex_descriptor& v,
+                             const loader_graph& g)
+        {
+            if (auto found_field = g[v].loader.lookup_field(
+                        vm, hdl.type_hdl.descriptor, hdl.unique_name)) {
+                throw * found_field;
+            }
+        }
+    } vis(*this, hdl);
+    boost::vector_property_map<int> color_map(
+            static_cast<unsigned>(num_vertices(loaders_)));
+    try {
+        boost::depth_first_visit(loaders_, *lv, vis, color_map);
+    }
+    catch (const field_vertex_descriptor& fv) {
+        // Field found: remember the initiating handle, and return.
+        fields_[boost::graph_bundle].jvm_hdl_to_vertex[hdl] = fv;
+        return fv;
     }
 
-    return found_field;
+    return boost::none;
 }
 
 boost::optional<field_vertex_descriptor>
@@ -423,21 +464,28 @@ namespace {
                 break;
             }
 
-            const auto& inheritance_mg
+            const auto& mig
                     = make_edge_filtered_graph<method_super_edge_property>(mg);
+            using method_inheritance_graph = decltype(mig);
 
             std::vector<method_vertex_descriptor> targets;
+            struct target_finder : boost::default_dfs_visitor {
+                std::vector<method_vertex_descriptor>& targets;
 
+                target_finder(std::vector<method_vertex_descriptor>& targets)
+                        : targets(targets)
+                {
+                }
+
+                void discover_vertex(const method_vertex_descriptor& v,
+                                     method_inheritance_graph& g)
+                {
+                    targets.push_back(v);
+                }
+            } vis(targets);
             boost::vector_property_map<int> color_map(
-                    static_cast<unsigned>(num_vertices(inheritance_mg)));
-            auto f = [&](method_vertex_descriptor v,
-                         const decltype(inheritance_mg)& g) {
-                targets.push_back(v);
-                return false;
-            };
-            boost::depth_first_visit(inheritance_mg, *mv,
-                                     boost::default_dfs_visitor{}, color_map,
-                                     f);
+                    static_cast<unsigned>(num_vertices(mig)));
+            boost::depth_first_visit(mig, *mv, vis, color_map);
 
             for (auto tv : targets) {
                 load_recursive_impl(vm_, tv, visited_);
