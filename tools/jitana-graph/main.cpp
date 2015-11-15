@@ -85,6 +85,11 @@ void test_virtual_machine()
                       add_data_flow_edges(vm, vm.methods()[v].insns);
                   });
 
+    std::cout << "# of classes: " << num_vertices(vm.classes()) << "\n";
+    std::cout << "# of methods: " << num_vertices(vm.methods()) << "\n";
+    std::cout << "# of fields:  " << num_vertices(vm.fields()) << "\n";
+
+    std::cout << "Writing graphs..." << std::endl;
     write_graphs(vm);
 }
 
