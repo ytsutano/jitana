@@ -80,6 +80,17 @@ namespace jitana {
                 return result;
             }
 
+            friend bool operator==(const insn_base& x, const insn_base& y)
+            {
+                return x.op == y.op && x.regs == y.regs
+                        && x.const_val == x.const_val;
+            }
+
+            friend bool operator!=(const insn_base& x, const insn_base& y)
+            {
+                return !(x == y);
+            }
+
             friend std::ostream& operator<<(std::ostream& os,
                                             const insn_base& x)
             {
@@ -101,6 +112,16 @@ namespace jitana {
     }
 
     struct no_const_val {
+        friend bool operator==(const no_const_val& x, const no_const_val& y)
+        {
+            return true;
+        }
+
+        friend bool operator!=(const no_const_val& x, const no_const_val& y)
+        {
+            return !(x == y);
+        }
+
         friend std::ostream& operator<<(std::ostream& os, const no_const_val& x)
         {
             return os;
@@ -111,6 +132,16 @@ namespace jitana {
         size_t element_width;
         size_t size;
         std::vector<uint8_t> data;
+
+        friend bool operator==(const array_payload& x, const array_payload& y)
+        {
+            return true;
+        }
+
+        friend bool operator!=(const array_payload& x, const array_payload& y)
+        {
+            return !(x == y);
+        }
 
         friend std::ostream& operator<<(std::ostream& os,
                                         const array_payload& x)
