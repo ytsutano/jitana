@@ -45,7 +45,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 #-------------------------------------------------------------------------------
 
 add_custom_target(format
-    find include lib tools \\\( -name "*.hpp" -or -name "*.cpp" \\\)
+    find include lib tools test \\\( -name "*.hpp" -or -name "*.cpp" \\\)
             -type f -exec clang-format -i {} \\+
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -85,6 +85,7 @@ add_library(jitana
     include/jitana/vm_graph/graphviz.hpp
     include/jitana/vm_graph/graph_common.hpp
     include/jitana/vm_graph/insn_graph.hpp
+    lib/jitana/util/jdwp.cpp
     lib/jitana/vm_core/class_loader.cpp
     lib/jitana/vm_core/dex_file.cpp
     lib/jitana/vm_core/insn_info.cpp
@@ -112,7 +113,6 @@ find_package(Threads)
 
 add_executable(jitana-travis
     tools/jitana-travis/main.cpp
-    lib/jitana/util/jdwp.cpp
 )
 target_link_libraries(jitana-travis
     jitana
@@ -127,6 +127,56 @@ add_custom_target(jitana-travis-copy-files
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 add_dependencies(jitana-travis jitana-travis-copy-files)
+
+#-------------------------------------------------------------------------------
+# Testing
+#-------------------------------------------------------------------------------
+
+enable_testing()
+
+find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+
+file(GLOB TEST_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} test/*.cpp)
+
+# Run through each source
+foreach(SRC ${TEST_SRCS})
+    # Extract the filename without an extension.
+    get_filename_component(TEST_EXEC_NAME ${SRC} NAME_WE)
+    string(REGEX REPLACE "_" "-" TEST_EXEC_NAME ${TEST_EXEC_NAME})
+
+    list(APPEND TEST_EXEC_NAME_LIST ${TEST_EXEC_NAME})
+
+    add_executable(${TEST_EXEC_NAME}
+        ${SRC}
+    )
+    target_link_libraries(${TEST_EXEC_NAME}
+        jitana
+        ${Boost_LIBRARIES}
+    )
+
+    file(READ "${SRC}" SOURCE_FILE_CONTENTS)
+    string(REGEX MATCHALL "BOOST_AUTO_TEST_CASE\\( *([A-Za-z_0-9]+) *\\)"
+        FOUND_TESTS ${SOURCE_FILE_CONTENTS})
+
+    foreach(HIT ${FOUND_TESTS})
+        string(REGEX REPLACE ".*\\( *([A-Za-z_0-9]+) *\\).*" "\\1"
+            TEST_NAME ${HIT})
+
+        set_target_properties(${TEST_EXEC_NAME} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test)
+
+        add_test(NAME "${TEST_EXEC_NAME}.${TEST_NAME}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test
+            COMMAND ${CMAKE_CURRENT_BINARY_DIR}/test/${TEST_EXEC_NAME}
+                --run_test=${TEST_NAME} --catch_system_error=yes)
+    endforeach()
+endforeach(SRC)
+
+add_custom_target(check
+    COMMAND ${CMAKE_CTEST_COMMAND}
+    DEPENDS ${TEST_EXEC_NAME_LIST}
+)
 
 #-------------------------------------------------------------------------------
 # Doxygen
