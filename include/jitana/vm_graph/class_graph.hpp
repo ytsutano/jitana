@@ -2,10 +2,14 @@
 #define JITANA_CLASS_GRAPH_HPP
 
 #include "jitana/vm_graph/graph_common.hpp"
+#include "jitana/vm_graph/edge_filtered_graph.hpp"
 
 #include <iostream>
 #include <vector>
 #include <unordered_map>
+
+#include <boost/graph/depth_first_search.hpp>
+#include <boost/graph/reverse_graph.hpp>
 
 namespace jitana {
     namespace detail {
@@ -89,6 +93,43 @@ namespace jitana {
         else {
             os << "color=orange, weight=5";
         }
+    }
+
+    template <typename ClassGraph>
+    inline bool is_superclass_of(const class_vertex_descriptor& superclass,
+                                 const class_vertex_descriptor& subclass,
+                                 const ClassGraph& g)
+    {
+        const auto& rcig = boost::make_reverse_graph(
+                make_edge_filtered_graph<class_super_edge_property>(g));
+        using class_inheritance_graph = decltype(rcig);
+
+        struct class_visitor : boost::default_dfs_visitor {
+            const class_vertex_descriptor& superclass;
+
+            class_visitor(const class_vertex_descriptor& superclass)
+                    : superclass(superclass)
+            {
+            }
+
+            void discover_vertex(const class_vertex_descriptor& v,
+                                 const class_inheritance_graph& g)
+            {
+                if (v == superclass) {
+                    throw v;
+                }
+            }
+        } vis(superclass);
+        boost::vector_property_map<int> color_map(
+                static_cast<unsigned>(num_vertices(g)));
+        try {
+            boost::depth_first_visit(rcig, subclass, vis, color_map);
+        }
+        catch (const class_vertex_descriptor& cv) {
+            return true;
+        }
+
+        return false;
     }
 }
 
