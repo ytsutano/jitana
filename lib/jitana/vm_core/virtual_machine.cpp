@@ -260,19 +260,16 @@ virtual_machine::find_insn(const dex_file_hdl& file_hdl, uint32_t offset,
 {
     auto lv = find_loader_vertex(file_hdl.loader_hdl, loaders_);
     if (!lv) {
-        std::cerr << "loader not found\n";
         return boost::none;
     }
 
     if (loaders_[*lv].loader.dex_files().size() <= file_hdl.idx) {
-        std::cerr << "bad index\n";
         return boost::none;
     }
 
     auto& dex_file = loaders_[*lv].loader.dex_files()[file_hdl.idx];
     auto p = dex_file.find_method_hdl(offset);
     if (!p) {
-        std::cerr << "method_hdl not found\n";
         return boost::none;
     }
 
@@ -281,18 +278,12 @@ virtual_machine::find_insn(const dex_file_hdl& file_hdl, uint32_t offset,
 
     auto mv = find_method(method_hdl, try_load);
     if (!mv) {
-        std::cerr << "method vertex not found\n";
         return boost::none;
     }
 
     const auto& ig = methods_[*mv].insns;
     auto iv = lookup_insn_vertex(local_off, ig);
     if (!iv) {
-        std::cerr << "insn vertex not found (";
-        std::cerr << "method_hdl=" << method_hdl << ", ";
-        std::cerr << "offset=" << offset << ", ";
-        std::cerr << "insns_off=" << ig[boost::graph_bundle].insns_off << ", ";
-        std::cerr << "local_off=" << local_off << ")\n";
         return boost::none;
     }
 

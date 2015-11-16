@@ -193,8 +193,6 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 hdl_, static_cast<uint16_t>(def.superclass_idx())};
         super_v = vm.find_class(super_hdl, true);
         if (!super_v) {
-            std::cerr << "Failed to load " << descriptor << "\n";
-            std::cerr << vm.jvm_hdl(super_hdl).descriptor << "\n";
             return boost::none;
         }
     }
@@ -210,8 +208,6 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
             auto interface_hdl = dex_type_hdl{hdl_, reader.get<uint16_t>()};
             auto interface_v = vm.find_class(interface_hdl, true);
             if (!interface_v) {
-                std::cerr << "Failed to load " << descriptor << "\n";
-                std::cerr << vm.jvm_hdl(interface_hdl).descriptor << "\n";
                 return boost::none;
             }
             interface_v_list.push_back(*interface_v);
@@ -542,7 +538,6 @@ dex_file::find_method_hdl(uint32_t dex_off) const
             begin(code_off_lut_), end(code_off_lut_), dex_off,
             [](uint32_t lhs, const auto& rhs) { return lhs < rhs.first; });
     if (it == begin(code_off_lut_)) {
-        std::cerr << "failed at upper_bound()\n";
         return boost::none;
     }
     --it;
@@ -554,13 +549,6 @@ dex_file::find_method_hdl(uint32_t dex_off) const
     uint32_t insn_off = dex_off - it->first;
     if (insn_off < 16) {
         // The offset is too small, meaning that it points to the code header.
-        std::cerr << "insn_off too small: ";
-        std::cerr << "dex_off=" << dex_off << " ";
-        std::cerr << "method_hdl.idx=" << it->second.value << " ";
-        ++it;
-        std::cerr << "next_method_hdl.offset=" << it->first << " ";
-        std::cerr << "next_method_hdl.idx=" << it->second.value << " ";
-        std::cerr << "insn_off=" << (((int)insn_off - 16) >> 1) << "\n";
         return boost::none;
     }
 
@@ -572,15 +560,6 @@ dex_file::find_method_hdl(uint32_t dex_off) const
 
     if (insn_off >= insns_size) {
         // The offset is too big.
-        std::cerr << "insn_off too big: ";
-        std::cerr << "dex_off=" << dex_off << " ";
-        std::cerr << "method_hdl.offset=" << it->first << " ";
-        std::cerr << "method_hdl.idx=" << it->second.value << " ";
-        ++it;
-        std::cerr << "next_method_hdl.offset=" << it->first << " ";
-        std::cerr << "next_method_hdl.idx=" << it->second.value << " ";
-        std::cerr << "insn_off=" << (((int)insn_off - 16) >> 1) << " ";
-        std::cerr << " >= insns_size=" << insns_size << "\n";
         return boost::none;
     }
 
@@ -1802,11 +1781,6 @@ void dex_file::parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
                 mvprop.params[i].name = ids_.c_str(param_name_idx);
             }
         }
-    }
-    else {
-        std::cerr << "size mismatch " << mvprop.jvm_hdl.unique_name << ": ";
-        std::cerr << "parameters_size=" << parameters_size << ", ";
-        std::cerr << "mvprop.params.size()=" << mvprop.params.size() << "\n";
     }
 
     // Opcode.

@@ -92,7 +92,6 @@ namespace jitana {
                               [&](const auto& s) {
                                   file_hdl.idx = dex_files.size();
                                   dex_files.emplace_back(file_hdl, s);
-                                  std::cout << "adding " << s << "\n";
                               });
             }
         };
