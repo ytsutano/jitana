@@ -6,8 +6,6 @@
 #include <boost/asio.hpp>
 
 #include <jitana/jitana.hpp>
-#include <jitana/vm_graph/graphviz.hpp>
-#include <jitana/vm_core/dex_file.hpp>
 #include <jitana/util/jdwp.hpp>
 #include <jitana/analysis/call_graph.hpp>
 
