@@ -187,6 +187,8 @@ namespace jitana {
                        pag_alloc_dot_array> vertex;
         dex_insn_hdl context;
 
+        boost::optional<dex_type_hdl> type;
+
         pag_vertex_descriptor parent;
         int rank;
 
@@ -375,6 +377,9 @@ namespace jitana {
             os << "label=\"" << g[v].vertex;
             if (g[v].context.idx != 0) {
                 os << "\\n(" << g[v].context << ")";
+            }
+            if (g[v].type) {
+                os << "\\nType: " << *g[v].type;
             }
             if (!g[g[v].parent].points_to_set.empty()) {
                 os << "\\n[";

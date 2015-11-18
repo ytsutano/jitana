@@ -254,31 +254,53 @@ namespace {
 
         void operator()(const insn_check_cast& x)
         {
-            add_assign_edge(x.regs[0], x.regs[0]);
+            auto cv = d_.vm.find_class(x.const_val, false);
+            if (!cv) {
+                std::cerr << "class not found: " << d_.vm.jvm_hdl(x.const_val)
+                          << "\n";
+                return;
+            }
+
+            add_assign_edge(x.regs[0], x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_const_string& x)
         {
-            add_alloc_edge(x.regs[0]);
+            auto loader_idx = d_.insn_hdl.method_hdl.file_hdl.loader_hdl.idx;
+            auto cv = d_.vm.find_class({loader_idx, "Ljava/lang/String;"},
+                                       false);
+            if (!cv) {
+                std::cerr << "class not found: Ljava/lang/String;\n";
+                return;
+            }
+
+            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_const_class& x)
         {
-            add_alloc_edge(x.regs[0]);
+            auto loader_idx = d_.insn_hdl.method_hdl.file_hdl.loader_hdl.idx;
+            auto cv = d_.vm.find_class({loader_idx, "Ljava/lang/Class;"},
+                                       false);
+            if (!cv) {
+                std::cerr << "class not found: Ljava/lang/Class;\n";
+                return;
+            }
+
+            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_new_instance& x)
         {
+            auto cv = d_.vm.find_class(x.const_val, false);
+            if (!cv) {
+                std::cerr << "class not found: " << d_.vm.jvm_hdl(x.const_val)
+                          << "\n";
+                return;
+            }
+
             // Run <clinit> of the target class.
             {
-                auto cv = d_.vm.find_class(x.const_val, false);
-                if (!cv) {
-                    std::cerr
-                            << "class not found: " << d_.vm.jvm_hdl(x.const_val)
-                            << "\n";
-                    return;
-                }
-
                 const auto& cg = d_.vm.classes();
                 auto clinit_mv = d_.vm.find_method(
                         jvm_method_hdl(cg[*cv].jvm_hdl, "<clinit>()V"), false);
@@ -287,12 +309,25 @@ namespace {
                 }
             }
 
-            add_alloc_edge(x.regs[0]);
+            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_new_array& x)
         {
-            add_alloc_edge(x.regs[0]);
+#if 1
+            // For now array is assumed to be Ljava/lang/Object;.
+            auto loader_idx = d_.insn_hdl.method_hdl.file_hdl.loader_hdl.idx;
+            auto cv = d_.vm.find_class({loader_idx, "Ljava/lang/Object;"},
+                                       false);
+            if (!cv) {
+                std::cerr << "class not found: Ljava/lang/Object;\n";
+                return;
+            }
+
+            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
+#else
+            add_alloc_edge(x.regs[0], boost::none); // x.const_val);
+#endif
         }
 
         void operator()(const insn_filled_new_array&)
@@ -555,28 +590,25 @@ namespace {
             }
         }
 
-        void add_alloc_edge(register_idx dst_reg)
+        void add_alloc_edge(register_idx dst_reg,
+                            const boost::optional<dex_type_hdl>& type)
         {
             dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
 
             auto src_v = make_vertex_for_alloc(d_.insn_hdl, d_.pag);
             auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
 
+            d_.pag[src_v].type = type;
+            d_.pag[dst_v].type = type;
+
             add_edge(src_v, dst_v, {pag_edge_property::kind_alloc}, d_.pag);
 
             d_.add_to_worklist(dst_v);
         }
 
-        void add_assign_edge(const dex_reg_hdl& dst_reg_hdl,
-                             const dex_reg_hdl& src_reg_hdl)
-        {
-            auto src_v = make_vertex_for_reg(src_reg_hdl, d_.context, d_.pag);
-            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
-
-            add_edge(src_v, dst_v, {pag_edge_property::kind_assign}, d_.pag);
-        }
-
-        void add_assign_edge(register_idx dst_reg, register_idx src_reg)
+        void add_assign_edge(register_idx dst_reg, register_idx src_reg,
+                             const boost::optional<dex_type_hdl>& dst_type
+                             = boost::none)
         {
             using boost::make_iterator_range;
             using boost::type_erasure::any_cast;
@@ -590,8 +622,15 @@ namespace {
                 dst_reg_hdl.insn_hdl.idx = num_vertices(*d_.ig) - 1;
             }
 
+            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
+            d_.pag[dst_v].type = dst_type;
+
             for_each_incoming_reg(src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
-                add_assign_edge(dst_reg_hdl, src_reg_hdl);
+                auto src_v
+                        = make_vertex_for_reg(src_reg_hdl, d_.context, d_.pag);
+
+                add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
+                         d_.pag);
             });
         }
 
@@ -831,6 +870,29 @@ namespace {
             }
             unique_sort(p2s);
 
+            // Apply type filtering.
+            if (const auto& type = d_.pag[v].type) {
+                auto cv = d_.vm.find_class(*type, false);
+                if (cv) {
+                    const auto& cg = d_.vm.classes();
+                    auto it = std::remove_if(
+                            begin(p2s), end(p2s),
+                            [&](const pag_vertex_descriptor& alloc_v) {
+                                const auto& alloc_type = d_.pag[alloc_v].type;
+                                if (!alloc_type) {
+                                    return false;
+                                }
+                                auto alloc_cv
+                                        = d_.vm.find_class(*alloc_type, false);
+                                if (!alloc_cv) {
+                                    return false;
+                                }
+                                return !is_superclass_of(*cv, *alloc_cv, cg);
+                            });
+                    p2s.erase(it, end(p2s));
+                }
+            }
+
             // If the points-to set size is changed, we have updated it.
             return p2s.size() != p2s_size;
         }
@@ -842,10 +904,10 @@ namespace {
 
             struct visitor : boost::static_visitor<void> {
                 visitor(pag_vertex_descriptor dereferencer_v,
-                        pag_vertex_descriptor OBJ_V,
+                        pag_vertex_descriptor obj_v,
                         points_to_algorithm_data& d, edge_list& edges_to_add)
                         : dereferencer_v_(dereferencer_v),
-                          obj_v(OBJ_V),
+                          obj_v(obj_v),
                           d_(d),
                           edges_to_add_(edges_to_add)
                 {
@@ -864,8 +926,23 @@ namespace {
                     auto& g = d_.pag;
                     auto obj_p2s = d_.pag[d_.pag[obj_v].parent].points_to_set;
 
+                    const auto& fg = d_.vm.fields();
+                    const auto& cg = d_.vm.classes();
+
                     auto field_hdl = x.field_hdl;
+                    auto fv = d_.vm.find_field(field_hdl, false);
+                    auto cv = d_.vm.find_class(fg[*fv].class_hdl, false);
+
                     for (auto alloc_v : obj_p2s) {
+                        if (const auto& alloc_type = d_.pag[alloc_v].type) {
+                            if (auto alloc_cv
+                                = d_.vm.find_class(*alloc_type, false)) {
+                                if (!is_superclass_of(*cv, *alloc_cv, cg)) {
+                                    continue;
+                                }
+                            }
+                        }
+
                         const auto& alloc_vertex
                                 = get<pag_alloc>(g[alloc_v].vertex);
                         auto adf_v = make_vertex_for_alloc_dot_field(

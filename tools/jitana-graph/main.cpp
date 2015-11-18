@@ -129,6 +129,8 @@ void test_virtual_machine()
             // Apply points-to analysis.
             jitana::update_points_to_graphs(pag, cg, vm, *mv);
 
+            std::cout << "# of pag nodes: " << num_vertices(pag) << "\n";
+
             std::cout << "Writing PAG..." << std::endl;
             std::ofstream ofs("output/pag.dot");
             jitana::write_graphviz_pointer_assignment_graph(ofs, pag);
