@@ -813,16 +813,21 @@ namespace {
             simplify();
 
             int counter = 0;
+            std::printf("%12s%12s%12s%12s%12s%12s\n", "counter", "worklist",
+                        "vertices", "alloc", "alloc.field", "alloc.array");
+            auto print_stats = [&]() {
+                const auto& gprop = d_.pag[boost::graph_bundle];
+                std::printf("%12d%12lu%12lu%12lu%12lu%12lu\n", counter,
+                            d_.worklist.size(), num_vertices(d_.pag),
+                            gprop.alloc_vertex_lut.size(),
+                            gprop.alloc_dot_field_vertex_lut.size(),
+                            gprop.alloc_dot_array_vertex_lut.size());
+            };
+
             while (!d_.worklist.empty()) {
                 constexpr int period = 10000;
                 if (counter % period == 0) {
-                    const auto& gprop = d_.pag[boost::graph_bundle];
-                    std::printf("%8d%8u%12lu%12lu%12lu%12lu\n", counter,
-                                static_cast<unsigned>(d_.worklist.size()),
-                                num_vertices(d_.pag),
-                                gprop.alloc_vertex_lut.size(),
-                                gprop.alloc_dot_field_vertex_lut.size(),
-                                gprop.alloc_dot_array_vertex_lut.size());
+                    print_stats();
                 }
                 counter++;
 
@@ -851,6 +856,7 @@ namespace {
                 // Add the targets to the worklist.
                 update_worklist(v);
             }
+            print_stats();
 
             return true;
         }

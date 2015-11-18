@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <regex>
+#include <chrono>
 
 #include <boost/graph/graphviz.hpp>
 #include <boost/type_erasure/any.hpp>
@@ -103,8 +104,13 @@ void test_virtual_machine()
     jitana::jvm_method_hdl mh = {{77, "LTest;"}, "main([Ljava/lang/String;)V"};
 #else
     jitana::jvm_method_hdl mh
+            // = {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
             = {{44, "Ljp/bio100/android/superdepth/SuperDepth;"},
                "onCreate(Landroid/os/Bundle;)V"};
+// "onStart()V"};
+// "onResume()V"};
+// "onPause()V"};
+// "onRestart()V"};
 #endif
     if (auto mv = vm.find_method(mh, true)) {
         vm.load_recursive(*mv);
@@ -126,10 +132,25 @@ void test_virtual_machine()
             jitana::pointer_assignment_graph pag;
             jitana::contextual_call_graph cg;
 
+            auto start = std::chrono::system_clock::now();
+
             // Apply points-to analysis.
             jitana::update_points_to_graphs(pag, cg, vm, *mv);
 
-            std::cout << "# of pag nodes: " << num_vertices(pag) << "\n";
+            auto duration
+                    = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now() - start);
+
+            std::cout << "# of pag vertices: " << num_vertices(pag) << "\n";
+            std::cout << "# of pag edges: " << num_edges(pag) << "\n";
+            size_t num_p2s = 0;
+            for (const auto& v : boost::make_iterator_range(vertices(pag))) {
+                num_p2s += pag[v].points_to_set.size();
+            }
+            std::cout << "# of p2s: " << num_p2s << "\n";
+            std::cout << "# of p2s (per vertex): "
+                      << (double(num_p2s) / num_vertices(pag)) << "\n";
+            std::cout << "duration: " << duration.count() << " ms\n";
 
             std::cout << "Writing PAG..." << std::endl;
             std::ofstream ofs("output/pag.dot");
