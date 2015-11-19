@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(points_to)
         vm.add_loader(loader, 11);
     }
 
-    jitana::jvm_method_hdl mh = {{33, "LTest;"}, "main([Ljava/lang/String;)V"};
+    jitana::jvm_method_hdl mh = {{22, "LTest;"}, "main([Ljava/lang/String;)V"};
 
     jitana::pointer_assignment_graph pag;
     jitana::contextual_call_graph cg;
@@ -84,9 +84,6 @@ BOOST_AUTO_TEST_CASE(points_to)
         throw std::runtime_error("failed to find the method");
     }
 
-    std::cout << "Writing PAG..." << std::endl;
-    std::ofstream ofs("pag.dot");
-    jitana::write_graphviz_pointer_assignment_graph(ofs, pag);
-
-    BOOST_CHECK(num_vertices(pag) == 90);
+    BOOST_CHECK(num_vertices(pag) == 51108);
+    BOOST_CHECK(num_edges(pag) == 141599);
 }

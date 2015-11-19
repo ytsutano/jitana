@@ -192,6 +192,7 @@ namespace jitana {
         pag_vertex_descriptor parent;
         int rank;
 
+        std::vector<pag_vertex_descriptor> in_set;
         std::vector<pag_vertex_descriptor> points_to_set;
         std::vector<pag_vertex_descriptor> dereferenced_by;
 

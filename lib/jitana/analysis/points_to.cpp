@@ -172,6 +172,21 @@ namespace std {
 
 namespace {
     struct points_to_algorithm_data {
+        pointer_assignment_graph& pag;
+        contextual_call_graph& cg;
+        virtual_machine& vm;
+        bool on_the_fly_cg;
+        pag_disjoint_sets ds;
+
+        const insn_graph* ig = nullptr;
+        insn_vertex_descriptor iv;
+        dex_insn_hdl insn_hdl;
+
+        dex_insn_hdl context = no_insn_hdl;
+
+        std::deque<pag_vertex_descriptor> worklist;
+        std::unordered_set<invocation> visited;
+
         points_to_algorithm_data(pointer_assignment_graph& pag,
                                  contextual_call_graph& cg, virtual_machine& vm,
                                  bool on_the_fly_cg)
@@ -192,28 +207,38 @@ namespace {
                     (*ig)[boost::graph_bundle].hdl, static_cast<uint16_t>(iv)};
         }
 
-        void add_to_worklist(pag_vertex_descriptor v)
+        void propagate_incremental(pag_vertex_descriptor src_v,
+                                   pag_vertex_descriptor dst_v)
         {
-            if (!pag[v].dirty) {
-                worklist.push(v);
-                pag[v].dirty = true;
-            }
+            propagate(src_v, dst_v, pag[pag[src_v].parent].in_set);
         }
 
-        pointer_assignment_graph& pag;
-        contextual_call_graph& cg;
-        virtual_machine& vm;
-        bool on_the_fly_cg;
-        pag_disjoint_sets ds;
+        void propagate_all(pag_vertex_descriptor src_v,
+                           pag_vertex_descriptor dst_v)
+        {
+            propagate(src_v, dst_v, pag[pag[src_v].parent].points_to_set);
+        }
 
-        const insn_graph* ig = nullptr;
-        insn_vertex_descriptor iv;
-        dex_insn_hdl insn_hdl;
+    private:
+        void propagate(pag_vertex_descriptor /*src_v*/,
+                       pag_vertex_descriptor dst_v,
+                       const std::vector<pag_vertex_descriptor>& out_set)
+        {
+            if (!out_set.empty()) {
+                auto& dst_in_set = pag[pag[dst_v].parent].in_set;
+                auto mid = dst_in_set.insert(end(dst_in_set), begin(out_set),
+                                             end(out_set));
+                std::inplace_merge(begin(dst_in_set), mid, end(dst_in_set));
+                dst_in_set.erase(
+                        std::unique(begin(dst_in_set), end(dst_in_set)),
+                        end(dst_in_set));
+            }
 
-        dex_insn_hdl context = no_insn_hdl;
-
-        std::queue<pag_vertex_descriptor> worklist;
-        std::unordered_set<invocation> visited;
+            if (!pag[dst_v].dirty) {
+                worklist.push_back(dst_v);
+                pag[dst_v].dirty = true;
+            }
+        }
     };
 }
 
@@ -480,7 +505,7 @@ namespace {
 
                 add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
                          d_.pag);
-
+                // d_.propagate_incremental(src_v, dst_v);
             };
 
             const auto& mg = d_.vm.methods();
@@ -569,6 +594,7 @@ namespace {
 
                 add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
                          d_.pag);
+                // d_.propagate_incremental(src_v, dst_v);
             }
         }
 
@@ -602,8 +628,7 @@ namespace {
             d_.pag[dst_v].type = type;
 
             add_edge(src_v, dst_v, {pag_edge_property::kind_alloc}, d_.pag);
-
-            d_.add_to_worklist(dst_v);
+            d_.propagate_all(src_v, dst_v);
         }
 
         void add_assign_edge(register_idx dst_reg, register_idx src_reg,
@@ -631,6 +656,7 @@ namespace {
 
                 add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
                          d_.pag);
+                // d_.propagate_incremental(src_v, dst_v);
             });
         }
 
@@ -706,7 +732,6 @@ namespace {
                                 add_edge(src_v, dst_v,
                                          {pag_edge_property::kind_istore},
                                          d_.pag);
-
                             });
                 });
             }
@@ -740,7 +765,6 @@ namespace {
 
                             add_edge(src_v, dst_v,
                                      {pag_edge_property::kind_iload}, d_.pag);
-
                         });
             }
         }
@@ -833,14 +857,17 @@ namespace {
 
                 // Pop a vertex from the d_.worklist.
                 auto v = d_.worklist.front();
-                d_.worklist.pop();
+                d_.worklist.pop_front();
                 d_.pag[v].dirty = false;
 
-                if (!update_points_to_set(v)) {
-                    // Points-to set did not change: continue.
+                filter_in_set(v);
+
+                if (d_.pag[d_.pag[v].parent].in_set.empty()) {
+                    // Points-to does not need to be changed.
                     continue;
                 }
 
+                update_points_to_set(v);
                 update_dereferencer(v);
 
                 if (d_.on_the_fly_cg && d_.pag[v].virtual_invoke_receiver) {
@@ -853,8 +880,9 @@ namespace {
 #endif
                 }
 
-                // Add the targets to the worklist.
-                update_worklist(v);
+                process_outgoing_edges(v);
+
+                d_.pag[d_.pag[v].parent].in_set.clear();
             }
             print_stats();
 
@@ -862,19 +890,17 @@ namespace {
         }
 
     private:
-        bool update_points_to_set(const pag_vertex_descriptor& v)
+        void filter_in_set(const pag_vertex_descriptor& v)
         {
-            auto& g = d_.pag;
             auto& p2s = d_.pag[d_.pag[v].parent].points_to_set;
-            auto p2s_size = p2s.size();
+            auto& in_set = d_.pag[d_.pag[v].parent].in_set;
 
-            // Process the incoming edges  to build the points-to set.
-            for (const auto& ie : boost::make_iterator_range(in_edges(v, g))) {
-                auto src_v = source(ie, g);
-                auto& src_p2s = g[g[src_v].parent].points_to_set;
-                p2s.insert(end(p2s), begin(src_p2s), end(src_p2s));
-            }
-            unique_sort(p2s);
+            // Remove the elements already exist in p2s from in_set.
+            std::vector<pag_vertex_descriptor> temp;
+            temp.reserve(in_set.size());
+            std::set_difference(begin(in_set), end(in_set), begin(p2s),
+                                end(p2s), std::back_inserter(temp));
+            swap(in_set, temp);
 
             // Apply type filtering.
             if (const auto& type = d_.pag[v].type) {
@@ -882,7 +908,7 @@ namespace {
                 if (cv) {
                     const auto& cg = d_.vm.classes();
                     auto it = std::remove_if(
-                            begin(p2s), end(p2s),
+                            begin(in_set), end(in_set),
                             [&](const pag_vertex_descriptor& alloc_v) {
                                 const auto& alloc_type = d_.pag[alloc_v].type;
                                 if (!alloc_type) {
@@ -895,12 +921,18 @@ namespace {
                                 }
                                 return !is_superclass_of(*cv, *alloc_cv, cg);
                             });
-                    p2s.erase(it, end(p2s));
+                    in_set.erase(it, end(in_set));
                 }
             }
+        }
 
-            // If the points-to set size is changed, we have updated it.
-            return p2s.size() != p2s_size;
+        void update_points_to_set(const pag_vertex_descriptor& v)
+        {
+            // Merge in_set into p2s_set.
+            auto& p2s = d_.pag[d_.pag[v].parent].points_to_set;
+            auto& in_set = d_.pag[d_.pag[v].parent].in_set;
+            auto p2s_mid = p2s.insert(end(p2s), begin(in_set), end(in_set));
+            std::inplace_merge(begin(p2s), p2s_mid, end(p2s));
         }
 
         void update_dereferencer(const pag_vertex_descriptor& v)
@@ -930,7 +962,7 @@ namespace {
                 void operator()(const pag_reg_dot_field& x) const
                 {
                     auto& g = d_.pag;
-                    auto obj_p2s = d_.pag[d_.pag[obj_v].parent].points_to_set;
+                    auto obj_in_set = d_.pag[d_.pag[obj_v].parent].in_set;
 
                     const auto& fg = d_.vm.fields();
                     const auto& cg = d_.vm.classes();
@@ -939,7 +971,7 @@ namespace {
                     auto fv = d_.vm.find_field(field_hdl, false);
                     auto cv = d_.vm.find_class(fg[*fv].class_hdl, false);
 
-                    for (auto alloc_v : obj_p2s) {
+                    for (auto alloc_v : obj_in_set) {
                         if (const auto& alloc_type = d_.pag[alloc_v].type) {
                             if (auto alloc_cv
                                 = d_.vm.find_class(*alloc_type, false)) {
@@ -978,9 +1010,9 @@ namespace {
                 void operator()(const pag_reg_dot_array&) const
                 {
                     auto& g = d_.pag;
-                    auto obj_p2s = d_.pag[d_.pag[obj_v].parent].points_to_set;
+                    auto obj_in_set = d_.pag[d_.pag[obj_v].parent].in_set;
 
-                    for (auto alloc_v : obj_p2s) {
+                    for (auto alloc_v : obj_in_set) {
                         const auto& alloc_vertex
                                 = get<pag_alloc>(g[alloc_v].vertex);
                         auto adf_v = make_vertex_for_alloc_dot_array(
@@ -1013,7 +1045,6 @@ namespace {
             auto& g = d_.pag;
             edge_list edges_to_add;
 
-            // Process the incoming edges.
             auto dereferenced_by = g[v].dereferenced_by;
             for (auto dereferencer_v : dereferenced_by) {
                 visitor vis(dereferencer_v, v, d_, edges_to_add);
@@ -1026,64 +1057,30 @@ namespace {
                     // The edge hasn't been added: add it now.
                     add_edge(e.first, e.second,
                              {pag_edge_property::kind_assign}, d_.pag);
-                    d_.add_to_worklist(e.second);
+                    d_.propagate_all(e.first, e.second);
                 }
             }
         }
 
-        void update_worklist(const pag_vertex_descriptor& v)
+        void process_outgoing_edges(const pag_vertex_descriptor& v)
         {
-            struct visitor : boost::static_visitor<void> {
-                visitor(pag_vertex_descriptor tgt_v,
-                        points_to_algorithm_data& d)
-                        : tgt_v_(tgt_v), d_(d)
-                {
-                }
-
-                void operator()(const pag_reg&) const
-                {
-                    d_.add_to_worklist(tgt_v_);
-                }
-
-                void operator()(const pag_alloc&) const
-                {
-                }
-
-                void operator()(const pag_reg_dot_field&) const
-                {
-                }
-
-                void operator()(const pag_alloc_dot_field&) const
-                {
-                    d_.add_to_worklist(tgt_v_);
-                }
-
-                void operator()(const pag_static_field&) const
-                {
-                    d_.add_to_worklist(tgt_v_);
-                }
-
-                void operator()(const pag_reg_dot_array&) const
-                {
-                }
-
-                void operator()(const pag_alloc_dot_array&) const
-                {
-                    d_.add_to_worklist(tgt_v_);
-                }
-
-            private:
-                pag_vertex_descriptor tgt_v_;
-                points_to_algorithm_data& d_;
-            };
-
             auto& g = d_.pag;
 
             // Process the outgoing edges.
             for (const auto& oe : boost::make_iterator_range(out_edges(v, g))) {
-                auto tgt_v = target(oe, g);
-                visitor vis(tgt_v, d_);
-                boost::apply_visitor(vis, g[tgt_v].vertex);
+                switch (g[oe].kind) {
+                case pag_edge_property::kind_alloc:
+                case pag_edge_property::kind_assign:
+                case pag_edge_property::kind_sstore:
+                case pag_edge_property::kind_sload:
+                    d_.propagate_incremental(v, target(oe, g));
+                    break;
+                case pag_edge_property::kind_istore:
+                case pag_edge_property::kind_iload:
+                case pag_edge_property::kind_astore:
+                case pag_edge_property::kind_aload:
+                    break;
+                }
             }
         }
 
