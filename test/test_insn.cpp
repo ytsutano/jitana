@@ -22,11 +22,19 @@
 
 BOOST_AUTO_TEST_CASE(check_equality)
 {
-    jitana::insn i0 = jitana::insn_move(jitana::opcode::op_move, {{0, 1}}, {});
-    jitana::insn i1 = jitana::insn_move(jitana::opcode::op_move, {{0, 1}}, {});
-    jitana::insn i2 = jitana::insn_move(jitana::opcode::op_move, {{0, 2}}, {});
+    using opcode = jitana::opcode;
+
+    jitana::insn i0 = jitana::insn_move(opcode::op_move, {{0, 1}}, {});
+    jitana::insn i1 = jitana::insn_move(opcode::op_move, {{0, 1}}, {});
+    jitana::insn i2 = jitana::insn_move(opcode::op_move, {{0, 2}}, {});
+    jitana::insn i4 = jitana::insn_iput(opcode::op_iput, {{0, 1}}, {{1, 2}, 3});
+    jitana::insn i5 = jitana::insn_iput(opcode::op_iput, {{0, 1}}, {{1, 2}, 4});
+    jitana::insn i6 = jitana::insn_iget(opcode::op_iget, {{0, 1}}, {{1, 2}, 3});
 
     BOOST_TEST(i0 == i0);
     BOOST_TEST(i0 == i1);
     BOOST_TEST(i0 != i2);
+    BOOST_TEST(i4 == i4);
+    BOOST_TEST(i4 != i5);
+    BOOST_TEST(i4 != i6);
 }

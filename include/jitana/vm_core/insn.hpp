@@ -99,7 +99,7 @@ namespace jitana {
             friend bool operator==(const insn_base& x, const insn_base& y)
             {
                 return x.op == y.op && x.regs == y.regs
-                        && x.const_val == x.const_val;
+                        && x.const_val == y.const_val;
             }
 
             friend bool operator!=(const insn_base& x, const insn_base& y)
