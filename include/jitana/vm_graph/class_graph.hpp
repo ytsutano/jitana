@@ -116,8 +116,8 @@ namespace jitana {
                                  const class_vertex_descriptor& subclass,
                                  const ClassGraph& g)
     {
-        const auto& rcig = boost::make_reverse_graph(
-                make_edge_filtered_graph<class_super_edge_property>(g));
+        auto cig = make_edge_filtered_graph<class_super_edge_property>(g);
+        auto rcig = boost::make_reverse_graph(cig);
         using class_inheritance_graph = decltype(rcig);
 
         struct class_visitor : boost::default_dfs_visitor {
