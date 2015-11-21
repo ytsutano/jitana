@@ -5,6 +5,7 @@
 #include <vector>
 #include <queue>
 
+#include <boost/variant.hpp>
 #include <boost/pending/disjoint_sets.hpp>
 
 using namespace jitana;
@@ -243,7 +244,7 @@ namespace {
 }
 
 namespace {
-    class pag_insn_visitor {
+    class pag_insn_visitor : public boost::static_visitor<void> {
     public:
         pag_insn_visitor(points_to_algorithm_data& d,
                          std::queue<invocation>& invoc_queue)

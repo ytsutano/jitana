@@ -327,7 +327,7 @@ namespace jitana {
     inline void write_graphviz_pointer_assignment_graph(std::ostream& os,
                                                         const PAG& g)
     {
-        class vertex_printer : boost::static_visitor<void> {
+        class vertex_printer : public boost::static_visitor<void> {
         public:
             vertex_printer(std::ostream& os) : os_(os)
             {
