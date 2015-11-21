@@ -37,7 +37,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 
 include_directories("include")
 
-find_package(Boost COMPONENTS system REQUIRED)
+SET(BOOST_MIN_VERSION "1.54.0")
+find_package(Boost ${BOOST_MIN_VERSION}
+    COMPONENTS system unit_test_framework REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
@@ -134,10 +136,11 @@ add_dependencies(jitana-travis jitana-travis-copy-files)
 
 enable_testing()
 
-find_package(Boost COMPONENTS unit_test_framework REQUIRED)
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+add_library(unit-test
+    test/unit_test.cpp
+)
 
-file(GLOB TEST_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} test/*.cpp)
+file(GLOB TEST_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} test/test_*.cpp)
 
 # Run through each source
 foreach(SRC ${TEST_SRCS})
@@ -152,7 +155,7 @@ foreach(SRC ${TEST_SRCS})
     )
     target_link_libraries(${TEST_EXEC_NAME}
         jitana
-        ${Boost_LIBRARIES}
+        unit-test
     )
 
     file(READ "${SRC}" SOURCE_FILE_CONTENTS)

@@ -15,7 +15,6 @@
  */
 
 #define BOOST_TEST_MODULE test_class_graph
-#define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 
 #include <jitana/jitana.hpp>
@@ -46,21 +45,29 @@ BOOST_AUTO_TEST_CASE(predicates)
         vm.add_loader(loader, 11);
     }
 
-    auto o_v = *vm.find_class({11, "Ljava/lang/Object;"}, true);
-    auto a_v = *vm.find_class({22, "LA;"}, true);
-    auto b_v = *vm.find_class({22, "LB;"}, true);
-    auto x_v = *vm.find_class({22, "LX;"}, true);
+    auto o_v = vm.find_class({11, "Ljava/lang/Object;"}, true);
+    auto a_v = vm.find_class({22, "LA;"}, true);
+    auto b_v = vm.find_class({22, "LB;"}, true);
+    auto x_v = vm.find_class({22, "LX;"}, true);
 
-    BOOST_TEST(is_superclass_of(a_v, a_v, vm.classes()));
+    // Make sure that all classes are found.
+    BOOST_CHECK(!!o_v);
+    BOOST_CHECK(!!a_v);
+    BOOST_CHECK(!!b_v);
+    BOOST_CHECK(!!x_v);
 
-    BOOST_TEST(is_superclass_of(o_v, a_v, vm.classes()));
-    BOOST_TEST(is_superclass_of(a_v, b_v, vm.classes()));
-    BOOST_TEST(is_superclass_of(o_v, b_v, vm.classes()));
+    const auto& cg = vm.classes();
 
-    BOOST_TEST(!is_superclass_of(a_v, o_v, vm.classes()));
-    BOOST_TEST(!is_superclass_of(b_v, a_v, vm.classes()));
-    BOOST_TEST(!is_superclass_of(b_v, o_v, vm.classes()));
+    BOOST_CHECK(is_superclass_of(*a_v, *a_v, cg));
 
-    BOOST_TEST(!is_superclass_of(a_v, x_v, vm.classes()));
-    BOOST_TEST(!is_superclass_of(a_v, x_v, vm.classes()));
+    BOOST_CHECK(is_superclass_of(*o_v, *a_v, cg));
+    BOOST_CHECK(is_superclass_of(*a_v, *b_v, cg));
+    BOOST_CHECK(is_superclass_of(*o_v, *b_v, cg));
+
+    BOOST_CHECK(!is_superclass_of(*a_v, *o_v, cg));
+    BOOST_CHECK(!is_superclass_of(*b_v, *a_v, cg));
+    BOOST_CHECK(!is_superclass_of(*b_v, *o_v, cg));
+
+    BOOST_CHECK(!is_superclass_of(*a_v, *x_v, cg));
+    BOOST_CHECK(!is_superclass_of(*x_v, *a_v, cg));
 }

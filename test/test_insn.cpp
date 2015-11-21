@@ -15,7 +15,6 @@
  */
 
 #define BOOST_TEST_MODULE test_insn
-#define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 
 #include <jitana/jitana.hpp>
@@ -31,10 +30,23 @@ BOOST_AUTO_TEST_CASE(check_equality)
     jitana::insn i5 = jitana::insn_iput(opcode::op_iput, {{0, 1}}, {{1, 2}, 4});
     jitana::insn i6 = jitana::insn_iget(opcode::op_iget, {{0, 1}}, {{1, 2}, 3});
 
-    BOOST_TEST(i0 == i0);
-    BOOST_TEST(i0 == i1);
-    BOOST_TEST(i0 != i2);
-    BOOST_TEST(i4 == i4);
-    BOOST_TEST(i4 != i5);
-    BOOST_TEST(i4 != i6);
+    // Check the equality operators.
+    BOOST_CHECK(i0 == i0);
+    BOOST_CHECK(i0 == i1);
+    BOOST_CHECK(i4 == i4);
+    BOOST_CHECK(!(i0 == i2));
+    BOOST_CHECK(!(i4 == i5));
+    BOOST_CHECK(!(i4 == i6));
+
+#if 0
+    // Check the inequality operators.
+    // Note: this can only be compiled with Boost 1.58 or later due to a bug:
+    // https://svn.boost.org/trac/boost/ticket/8620.
+    BOOST_CHECK(!(i0 != i0));
+    BOOST_CHECK(!(i0 != i1));
+    BOOST_CHECK(!(i4 != i4));
+    BOOST_CHECK(i0 != i2);
+    BOOST_CHECK(i4 != i5);
+    BOOST_CHECK(i4 != i6);
+#endif
 }
