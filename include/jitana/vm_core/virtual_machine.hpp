@@ -22,6 +22,9 @@
 #include "jitana/vm_graph/method_graph.hpp"
 #include "jitana/vm_graph/field_graph.hpp"
 
+#include <unordered_set>
+#include <utility>
+
 #include <boost/optional.hpp>
 
 namespace jitana {
