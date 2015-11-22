@@ -25,7 +25,7 @@ else()
             "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support."
             "Please use a different C++ compiler.")
 endif()
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
