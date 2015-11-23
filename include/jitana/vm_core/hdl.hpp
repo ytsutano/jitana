@@ -91,6 +91,26 @@ namespace jitana {
             return !(x == y);
         }
 
+        friend bool operator<(const dex_file_hdl& x, const dex_file_hdl& y)
+        {
+            return x.loader_hdl < y.loader_hdl && x.idx < y.idx;
+        }
+
+        friend bool operator>(const dex_file_hdl& x, const dex_file_hdl& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const dex_file_hdl& x, const dex_file_hdl& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const dex_file_hdl& x, const dex_file_hdl& y)
+        {
+            return !(x < y);
+        }
+
         friend std::ostream& operator<<(std::ostream& os, const dex_file_hdl& x)
         {
             return os << unsigned(x.loader_hdl) << "_" << unsigned(x.idx);
@@ -126,6 +146,26 @@ namespace jitana {
             return !(x == y);
         }
 
+        friend bool operator<(const dex_type_hdl& x, const dex_type_hdl& y)
+        {
+            return x.file_hdl < y.file_hdl && x.idx < y.idx;
+        }
+
+        friend bool operator>(const dex_type_hdl& x, const dex_type_hdl& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const dex_type_hdl& x, const dex_type_hdl& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const dex_type_hdl& x, const dex_type_hdl& y)
+        {
+            return !(x < y);
+        }
+
         friend std::ostream& operator<<(std::ostream& os, const dex_type_hdl& x)
         {
             return os << x.file_hdl << "_t" << x.idx;
@@ -159,6 +199,26 @@ namespace jitana {
         friend bool operator!=(const dex_method_hdl& x, const dex_method_hdl& y)
         {
             return !(x == y);
+        }
+
+        friend bool operator<(const dex_method_hdl& x, const dex_method_hdl& y)
+        {
+            return x.file_hdl < y.file_hdl && x.idx < y.idx;
+        }
+
+        friend bool operator>(const dex_method_hdl& x, const dex_method_hdl& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const dex_method_hdl& x, const dex_method_hdl& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const dex_method_hdl& x, const dex_method_hdl& y)
+        {
+            return !(x < y);
         }
 
         friend std::ostream& operator<<(std::ostream& os,
@@ -197,6 +257,26 @@ namespace jitana {
             return !(x == y);
         }
 
+        friend bool operator<(const dex_field_hdl& x, const dex_field_hdl& y)
+        {
+            return x.file_hdl < y.file_hdl && x.idx < y.idx;
+        }
+
+        friend bool operator>(const dex_field_hdl& x, const dex_field_hdl& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const dex_field_hdl& x, const dex_field_hdl& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const dex_field_hdl& x, const dex_field_hdl& y)
+        {
+            return !(x < y);
+        }
+
         friend std::ostream& operator<<(std::ostream& os,
                                         const dex_field_hdl& x)
         {
@@ -233,6 +313,26 @@ namespace jitana {
             return !(x == y);
         }
 
+        friend bool operator<(const dex_insn_hdl& x, const dex_insn_hdl& y)
+        {
+            return x.method_hdl < y.method_hdl && x.idx < y.idx;
+        }
+
+        friend bool operator>(const dex_insn_hdl& x, const dex_insn_hdl& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const dex_insn_hdl& x, const dex_insn_hdl& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const dex_insn_hdl& x, const dex_insn_hdl& y)
+        {
+            return !(x < y);
+        }
+
         friend std::ostream& operator<<(std::ostream& os, const dex_insn_hdl& x)
         {
             return os << x.method_hdl << "_i" << x.idx;
@@ -265,6 +365,26 @@ namespace jitana {
         friend bool operator!=(const dex_reg_hdl& x, const dex_reg_hdl& y)
         {
             return !(x == y);
+        }
+
+        friend bool operator<(const dex_reg_hdl& x, const dex_reg_hdl& y)
+        {
+            return x.insn_hdl < y.insn_hdl && x.idx < y.idx;
+        }
+
+        friend bool operator>(const dex_reg_hdl& x, const dex_reg_hdl& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const dex_reg_hdl& x, const dex_reg_hdl& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const dex_reg_hdl& x, const dex_reg_hdl& y)
+        {
+            return !(x < y);
         }
 
         friend std::ostream& operator<<(std::ostream& os, const dex_reg_hdl& x)
