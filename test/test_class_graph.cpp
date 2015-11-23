@@ -20,10 +20,8 @@
 
 #include <jitana/jitana.hpp>
 
-BOOST_AUTO_TEST_CASE(predicates)
+void add_loaders(jitana::virtual_machine& vm)
 {
-    jitana::virtual_machine vm;
-
     {
         const auto& filenames = {"../../dex/framework/core.dex",
                                  "../../dex/framework/framework.dex",
@@ -45,6 +43,22 @@ BOOST_AUTO_TEST_CASE(predicates)
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
+}
+
+BOOST_AUTO_TEST_CASE(array)
+{
+    jitana::virtual_machine vm;
+    add_loaders(vm);
+
+    auto v0 = vm.find_class({11, "Ljava/lang/reflect/Array;"}, true);
+
+    BOOST_CHECK(!!v0);
+}
+
+BOOST_AUTO_TEST_CASE(predicates)
+{
+    jitana::virtual_machine vm;
+    add_loaders(vm);
 
     auto o_v = vm.find_class({11, "Ljava/lang/Object;"}, true);
     auto a_v = vm.find_class({22, "LA;"}, true);

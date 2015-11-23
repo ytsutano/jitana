@@ -7,7 +7,8 @@
 namespace jitana {
     bool update_points_to_graphs(pointer_assignment_graph& pag,
                                  contextual_call_graph& cg, virtual_machine& vm,
-                                 const method_vertex_descriptor& mv);
+                                 const method_vertex_descriptor& mv,
+                                 bool on_the_fly_cg = true);
 }
 
 #endif

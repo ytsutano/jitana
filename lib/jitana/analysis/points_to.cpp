@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <queue>
+#include <unordered_map>
 
 #include <boost/variant.hpp>
 #include <boost/pending/disjoint_sets.hpp>
@@ -55,7 +56,6 @@ namespace {
         const insn_graph* ig = nullptr;
         insn_vertex_descriptor iv;
         dex_insn_hdl insn_hdl;
-
         dex_insn_hdl context = no_insn_hdl;
 
         std::deque<pag_vertex_descriptor> worklist;
@@ -84,18 +84,17 @@ namespace {
         void propagate_incremental(pag_vertex_descriptor src_v,
                                    pag_vertex_descriptor dst_v)
         {
-            propagate(src_v, dst_v, pag[pag[src_v].parent].in_set);
+            propagate(dst_v, pag[pag[src_v].parent].in_set);
         }
 
         void propagate_all(pag_vertex_descriptor src_v,
                            pag_vertex_descriptor dst_v)
         {
-            propagate(src_v, dst_v, pag[pag[src_v].parent].points_to_set);
+            propagate(dst_v, pag[pag[src_v].parent].points_to_set);
         }
 
     private:
-        void propagate(pag_vertex_descriptor /*src_v*/,
-                       pag_vertex_descriptor dst_v,
+        void propagate(pag_vertex_descriptor dst_v,
                        const std::vector<pag_vertex_descriptor>& out_set)
         {
             if (!out_set.empty()) {
@@ -117,6 +116,340 @@ namespace {
 }
 
 namespace {
+    template <typename Func>
+    inline void for_each_incoming_reg(points_to_algorithm_data& d_,
+                                      register_idx reg, Func f)
+    {
+        using boost::make_iterator_range;
+        using boost::type_erasure::any_cast;
+
+        dex_reg_hdl reg_hdl(d_.insn_hdl, reg.value);
+
+        for (const auto& e : make_iterator_range(in_edges(d_.iv, *d_.ig))) {
+            using edge_prop_t = insn_data_flow_edge_property;
+            const auto* de = any_cast<const edge_prop_t*>(&(*d_.ig)[e]);
+            if (de != nullptr && de->reg == reg) {
+                reg_hdl.insn_hdl.idx = source(e, *d_.ig);
+                f(reg_hdl);
+            }
+        }
+    }
+
+    std::ofstream ccg_ofs("output/ccg.dot");
+
+    inline void add_invoke_edges(points_to_algorithm_data& d_,
+                                 method_vertex_descriptor mv,
+                                 const insn_invoke& insn)
+    {
+        auto add_call_edge = [&](const dex_reg_hdl& dst_reg_hdl,
+                                 const dex_reg_hdl& src_reg_hdl) {
+            auto src_v = make_vertex_for_reg(src_reg_hdl, d_.context, d_.pag);
+            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.insn_hdl, d_.pag);
+
+            add_edge(src_v, dst_v, {pag_edge_property::kind_assign}, d_.pag);
+            // d_.propagate_incremental(src_v, dst_v);
+        };
+
+        const auto& mg = d_.vm.methods();
+        const auto& tgt_mvprop = mg[mv];
+        const auto& params = tgt_mvprop.params;
+        const auto& tgt_igprop = tgt_mvprop.insns[boost::graph_bundle];
+
+        if (tgt_mvprop.access_flags & acc_abstract) {
+            return;
+        }
+
+        // lookup_ccg_vertex(tgt_mvprop.hdl, d_.cg);
+        ccg_ofs << "\"" << d_.insn_hdl.method_hdl << "\"";
+        ccg_ofs << "->";
+        ccg_ofs << "\"" << tgt_mvprop.hdl << "\"";
+        ccg_ofs << "[label=\"";
+        ccg_ofs << d_.insn_hdl.idx;
+        ccg_ofs << "\"];\n";
+
+        // Parameters.
+        {
+            std::vector<int> reg_offsets;
+            {
+                int offset = 0;
+
+                // Non-static method has a this pointer as the first
+                // argument.
+                if (!(tgt_mvprop.access_flags & acc_static)) {
+                    reg_offsets.push_back(0);
+                    ++offset;
+                }
+
+                for (const auto& p : params) {
+                    char desc = p.descriptor[0];
+
+                    reg_offsets.push_back((desc == 'L' || desc == '[') ? offset
+                                                                       : -1);
+
+                    ++offset;
+                    if (desc == 'J' || desc == 'D') {
+                        // Ignore next register if the parameter is a
+                        // wide type.
+                        ++offset;
+                    }
+                }
+            }
+
+            dex_insn_hdl tgt_entry_insn_hdl(tgt_mvprop.hdl, 0);
+            dex_reg_hdl dst_reg_hdl(tgt_entry_insn_hdl, 0);
+
+            auto actual_reg_start
+                    = tgt_igprop.registers_size - tgt_igprop.ins_size;
+            if (insn.is_regs_range()) {
+                auto formal_reg_start = insn.regs[0].value;
+                for (auto off : reg_offsets) {
+                    if (off != -1) {
+                        dst_reg_hdl.idx = actual_reg_start + off;
+                        for_each_incoming_reg(
+                                d_, formal_reg_start + off,
+                                [&](const dex_reg_hdl& src_reg_hdl) {
+                                    add_call_edge(dst_reg_hdl, src_reg_hdl);
+                                });
+                    }
+                }
+            }
+            else {
+                for (size_t i = 0; i < reg_offsets.size(); ++i) {
+                    auto off = reg_offsets[i];
+                    if (off != -1) {
+                        dst_reg_hdl.idx = actual_reg_start + off;
+                        for_each_incoming_reg(
+                                d_, insn.regs[i].value,
+                                [&](const dex_reg_hdl& src_reg_hdl) {
+                                    add_call_edge(dst_reg_hdl, src_reg_hdl);
+                                });
+                    }
+                }
+            }
+        }
+
+        // Return value.
+        auto ret_desc = tgt_mvprop.jvm_hdl.return_descriptor()[0];
+        if (ret_desc == 'L' || ret_desc == '[') {
+            dex_insn_hdl tgt_exit_insn_hdl(tgt_mvprop.hdl,
+                                           num_vertices(tgt_mvprop.insns) - 1);
+            dex_reg_hdl src_reg_hdl(tgt_exit_insn_hdl,
+                                    register_idx::idx_result);
+            dex_reg_hdl dst_reg_hdl(d_.insn_hdl, register_idx::idx_result);
+
+            auto src_v = make_vertex_for_reg(src_reg_hdl, d_.insn_hdl, d_.pag);
+            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
+
+            add_edge(src_v, dst_v, {pag_edge_property::kind_assign}, d_.pag);
+            // d_.propagate_incremental(src_v, dst_v);
+        }
+    }
+
+    inline void add_alloc_edge(points_to_algorithm_data& d_,
+                               register_idx dst_reg,
+                               const boost::optional<dex_type_hdl>& type)
+    {
+        dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
+
+        auto src_v = make_vertex_for_alloc(d_.insn_hdl, d_.pag);
+        auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
+
+        d_.pag[src_v].type = type;
+        d_.pag[dst_v].type = type;
+
+        add_edge(src_v, dst_v, {pag_edge_property::kind_alloc}, d_.pag);
+        d_.propagate_all(src_v, dst_v);
+    }
+
+    inline void add_assign_edge(points_to_algorithm_data& d_,
+                                register_idx dst_reg, register_idx src_reg,
+                                const boost::optional<dex_type_hdl>& dst_type
+                                = boost::none)
+    {
+        using boost::make_iterator_range;
+        using boost::type_erasure::any_cast;
+
+        dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
+
+        // If the destination is the result register, we know that it
+        // comes from the return instruction. Thus we associate the
+        // result resiter to the exit instruction.
+        if (dst_reg == register_idx::idx_result) {
+            dst_reg_hdl.insn_hdl.idx = num_vertices(*d_.ig) - 1;
+        }
+
+        auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
+        d_.pag[dst_v].type = dst_type;
+
+        for_each_incoming_reg(d_, src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
+            auto src_v = make_vertex_for_reg(src_reg_hdl, d_.context, d_.pag);
+
+            add_edge(src_v, dst_v, {pag_edge_property::kind_assign}, d_.pag);
+            // d_.propagate_incremental(src_v, dst_v);
+        });
+    }
+
+    inline void add_astore_edge(points_to_algorithm_data& d_,
+                                register_idx src_reg, register_idx obj_reg,
+                                register_idx /*idx_reg*/)
+    {
+        for_each_incoming_reg(d_, src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
+            for_each_incoming_reg(
+                    d_, obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
+                        auto src_v = make_vertex_for_reg(src_reg_hdl,
+                                                         d_.context, d_.pag);
+                        auto dst_v = make_vertex_for_reg_dot_array(
+                                obj_reg_hdl, d_.context, d_.pag);
+                        auto obj_v = make_vertex_for_reg(obj_reg_hdl,
+                                                         d_.context, d_.pag);
+
+                        d_.pag[obj_v].dereferenced_by.push_back(dst_v);
+                        unique_sort(d_.pag[obj_v].dereferenced_by);
+
+                        add_edge(src_v, dst_v, {pag_edge_property::kind_astore},
+                                 d_.pag);
+                    });
+        });
+    }
+
+    inline void add_aload_edge(points_to_algorithm_data& d_,
+                               register_idx dst_reg, register_idx obj_reg,
+                               register_idx /*idx_reg*/)
+    {
+        dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
+
+        for_each_incoming_reg(d_, obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
+            auto src_v = make_vertex_for_reg_dot_array(obj_reg_hdl, d_.context,
+                                                       d_.pag);
+            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
+            auto obj_v = make_vertex_for_reg(obj_reg_hdl, d_.context, d_.pag);
+
+            d_.pag[obj_v].dereferenced_by.push_back(src_v);
+            unique_sort(d_.pag[obj_v].dereferenced_by);
+
+            add_edge(src_v, dst_v, {pag_edge_property::kind_aload}, d_.pag);
+        });
+    }
+
+    inline void add_istore_edge(points_to_algorithm_data& d_,
+                                register_idx src_reg, register_idx obj_reg,
+                                const dex_field_hdl& field_hdl)
+    {
+        const auto& fv = d_.vm.find_field(field_hdl, false);
+        if (!fv) {
+            std::cerr << "istore: field not found: " << d_.vm.jvm_hdl(field_hdl)
+                      << "\n";
+            return;
+        }
+
+        const auto& fg = d_.vm.fields();
+        if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
+            for_each_incoming_reg(d_, src_reg, [&](const dex_reg_hdl&
+                                                           src_reg_hdl) {
+                for_each_incoming_reg(
+                        d_, obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
+                            auto src_v = make_vertex_for_reg(
+                                    src_reg_hdl, d_.context, d_.pag);
+                            auto dst_v = make_vertex_for_reg_dot_field(
+                                    obj_reg_hdl, field_hdl, d_.context, d_.pag);
+                            auto obj_v = make_vertex_for_reg(
+                                    obj_reg_hdl, d_.context, d_.pag);
+
+                            d_.pag[obj_v].dereferenced_by.push_back(dst_v);
+                            unique_sort(d_.pag[obj_v].dereferenced_by);
+
+                            add_edge(src_v, dst_v,
+                                     {pag_edge_property::kind_istore}, d_.pag);
+                        });
+            });
+        }
+    }
+
+    inline void add_iload_edge(points_to_algorithm_data& d_,
+                               register_idx dst_reg, register_idx obj_reg,
+                               const dex_field_hdl& field_hdl)
+    {
+        const auto& fv = d_.vm.find_field(field_hdl, false);
+        if (!fv) {
+            std::cerr << "iload: field not found: " << d_.vm.jvm_hdl(field_hdl)
+                      << "\n";
+            return;
+        }
+
+        const auto& fg = d_.vm.fields();
+        if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
+            dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
+
+            for_each_incoming_reg(
+                    d_, obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
+                        auto src_v = make_vertex_for_reg_dot_field(
+                                obj_reg_hdl, field_hdl, d_.context, d_.pag);
+                        auto dst_v = make_vertex_for_reg(dst_reg_hdl,
+                                                         d_.context, d_.pag);
+                        auto obj_v = make_vertex_for_reg(obj_reg_hdl,
+                                                         d_.context, d_.pag);
+
+                        d_.pag[obj_v].dereferenced_by.push_back(src_v);
+                        unique_sort(d_.pag[obj_v].dereferenced_by);
+
+                        add_edge(src_v, dst_v, {pag_edge_property::kind_iload},
+                                 d_.pag);
+                    });
+        }
+    }
+
+    inline void add_sstore_edge(points_to_algorithm_data& d_,
+                                register_idx src_reg,
+                                const dex_field_hdl& field_hdl)
+    {
+        const auto& fg = d_.vm.fields();
+        const auto& fv = d_.vm.find_field(field_hdl, false);
+        if (!fv) {
+            std::stringstream ss;
+            ss << "ailed to find the static field ";
+            ss << d_.vm.jvm_hdl(field_hdl);
+            throw std::runtime_error(ss.str());
+        }
+
+        if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
+            for_each_incoming_reg(
+                    d_, src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
+                        auto src_v = make_vertex_for_reg(src_reg_hdl,
+                                                         d_.context, d_.pag);
+                        auto dst_v = make_vertex_for_static_field(field_hdl,
+                                                                  d_.pag);
+
+                        add_edge(src_v, dst_v, {pag_edge_property::kind_sstore},
+                                 d_.pag);
+                    });
+        }
+    }
+
+    inline void add_sload_edge(points_to_algorithm_data& d_,
+                               register_idx dst_reg,
+                               const dex_field_hdl& field_hdl)
+    {
+        const auto& fg = d_.vm.fields();
+        const auto& fv = d_.vm.find_field(field_hdl, false);
+        if (!fv) {
+            std::stringstream ss;
+            ss << "ailed to find the static field ";
+            ss << d_.vm.jvm_hdl(field_hdl);
+            throw std::runtime_error(ss.str());
+        }
+
+        if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
+            dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
+
+            auto src_v = make_vertex_for_static_field(field_hdl, d_.pag);
+            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
+
+            add_edge(src_v, dst_v, {pag_edge_property::kind_sload}, d_.pag);
+        }
+    }
+};
+
+namespace {
     class pag_insn_visitor : public boost::static_visitor<void> {
     public:
         pag_insn_visitor(points_to_algorithm_data& d,
@@ -132,7 +465,7 @@ namespace {
             case opcode::op_move_object_from16:
             case opcode::op_move_object_16:
             case opcode::op_move_result_object:
-                add_assign_edge(x.regs[0], x.regs[1]);
+                add_assign_edge(d_, x.regs[0], x.regs[1]);
                 break;
             default:
                 break;
@@ -143,7 +476,7 @@ namespace {
         {
             switch (x.op) {
             case opcode::op_return_object:
-                add_assign_edge(register_idx(register_idx::idx_result),
+                add_assign_edge(d_, register_idx(register_idx::idx_result),
                                 x.regs[0]);
                 break;
             default:
@@ -155,12 +488,12 @@ namespace {
         {
             auto cv = d_.vm.find_class(x.const_val, false);
             if (!cv) {
-                std::cerr << "class not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_check_cast: class not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
-            add_assign_edge(x.regs[0], x.regs[0], d_.vm.classes()[*cv].hdl);
+            add_assign_edge(d_, x.regs[0], x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_const_string& x)
@@ -169,11 +502,12 @@ namespace {
             auto cv = d_.vm.find_class({loader_idx, "Ljava/lang/String;"},
                                        false);
             if (!cv) {
-                std::cerr << "class not found: Ljava/lang/String;\n";
+                std::cerr << "insn_const_string: class not found: ";
+                std::cerr << "Ljava/lang/String;\n";
                 return;
             }
 
-            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
+            add_alloc_edge(d_, x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_const_class& x)
@@ -182,19 +516,20 @@ namespace {
             auto cv = d_.vm.find_class({loader_idx, "Ljava/lang/Class;"},
                                        false);
             if (!cv) {
-                std::cerr << "class not found: Ljava/lang/Class;\n";
+                std::cerr << "insn_const_class: class not found: ";
+                std::cerr << "Ljava/lang/Class;\n";
                 return;
             }
 
-            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
+            add_alloc_edge(d_, x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_new_instance& x)
         {
             auto cv = d_.vm.find_class(x.const_val, false);
             if (!cv) {
-                std::cerr << "class not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_new_instance: class not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -208,7 +543,7 @@ namespace {
                 }
             }
 
-            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
+            add_alloc_edge(d_, x.regs[0], d_.vm.classes()[*cv].hdl);
         }
 
         void operator()(const insn_new_array& x)
@@ -219,11 +554,12 @@ namespace {
             auto cv = d_.vm.find_class({loader_idx, "Ljava/lang/Object;"},
                                        false);
             if (!cv) {
-                std::cerr << "class not found: Ljava/lang/Object;\n";
+                std::cerr << "insn_new_array: class not found: ";
+                std::cerr << "Ljava/lang/Object;\n";
                 return;
             }
 
-            add_alloc_edge(x.regs[0], d_.vm.classes()[*cv].hdl);
+            add_alloc_edge(d_, x.regs[0], d_.vm.classes()[*cv].hdl);
 #else
             add_alloc_edge(x.regs[0], boost::none); // x.const_val);
 #endif
@@ -235,44 +571,44 @@ namespace {
 
         void operator()(const insn_aget& x)
         {
-            add_aload_edge(x.regs[0], x.regs[1], x.regs[2]);
+            add_aload_edge(d_, x.regs[0], x.regs[1], x.regs[2]);
         }
 
         void operator()(const insn_aput& x)
         {
-            add_astore_edge(x.regs[0], x.regs[1], x.regs[2]);
+            add_astore_edge(d_, x.regs[0], x.regs[1], x.regs[2]);
         }
 
         void operator()(const insn_iget& x)
         {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
-                std::cerr << "field not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_iget: field not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
-            add_iload_edge(x.regs[0], x.regs[1], d_.vm.fields()[*fv].hdl);
+            add_iload_edge(d_, x.regs[0], x.regs[1], d_.vm.fields()[*fv].hdl);
         }
 
         void operator()(const insn_iput& x)
         {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
-                std::cerr << "field not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_iput: field not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
-            add_istore_edge(x.regs[0], x.regs[1], d_.vm.fields()[*fv].hdl);
+            add_istore_edge(d_, x.regs[0], x.regs[1], d_.vm.fields()[*fv].hdl);
         }
 
         void operator()(const insn_sget& x)
         {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
-                std::cerr << "field not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_sget: field not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -287,15 +623,15 @@ namespace {
                 }
             }
 
-            add_sload_edge(x.regs[0], d_.vm.fields()[*fv].hdl);
+            add_sload_edge(d_, x.regs[0], d_.vm.fields()[*fv].hdl);
         }
 
         void operator()(const insn_sput& x)
         {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
-                std::cerr << "field not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_sput: field not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -310,15 +646,15 @@ namespace {
                 }
             }
 
-            add_sstore_edge(x.regs[0], d_.vm.fields()[*fv].hdl);
+            add_sstore_edge(d_, x.regs[0], d_.vm.fields()[*fv].hdl);
         }
 
         void operator()(const insn_invoke& x)
         {
             auto mv = d_.vm.find_method(x.const_val, false);
             if (!mv) {
-                std::cerr << "method not found: " << d_.vm.jvm_hdl(x.const_val)
-                          << "\n";
+                std::cerr << "insn_invoke: method not found: "
+                          << d_.vm.jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -341,20 +677,34 @@ namespace {
                 break;
             }
 
-            auto inheritance_mg
-                    = make_edge_filtered_graph<method_super_edge_property>(mg);
+            if (info(x.op).can_virtually_invoke()) {
+                for_each_incoming_reg(
+                        d_, x.regs[0], [&](const dex_reg_hdl& obj_reg_hdl) {
+                            auto obj_v = make_vertex_for_reg(
+                                    obj_reg_hdl, d_.context, d_.pag);
+                            auto& vms = d_.pag[obj_v].virtual_invoke_insns;
+                            vms.emplace_back(d_.context, d_.insn_hdl);
+                            unique_sort(vms);
+                        });
+            }
 
-            boost::vector_property_map<int> color_map(
-                    static_cast<unsigned>(num_vertices(inheritance_mg)));
-            auto f = [&](method_vertex_descriptor v,
-                         const decltype(inheritance_mg)&) {
-                invoc_queue_.push({d_.insn_hdl, v});
-                add_invoke_edges(v, x);
-                return false;
-            };
-            boost::depth_first_visit(inheritance_mg, *mv,
-                                     boost::default_dfs_visitor{}, color_map,
-                                     f);
+            if (!d_.on_the_fly_cg || !info(x.op).can_virtually_invoke()) {
+                auto inheritance_mg
+                        = make_edge_filtered_graph<method_super_edge_property>(
+                                mg);
+
+                boost::vector_property_map<int> color_map(
+                        static_cast<unsigned>(num_vertices(inheritance_mg)));
+                auto f = [&](method_vertex_descriptor v,
+                             const decltype(inheritance_mg)&) {
+                    invoc_queue_.push({d_.insn_hdl, v});
+                    add_invoke_edges(d_, v, x);
+                    return false;
+                };
+                boost::depth_first_visit(inheritance_mg, *mv,
+                                         boost::default_dfs_visitor{},
+                                         color_map, f);
+            }
         }
 
         void operator()(const insn_invoke_quick&)
@@ -364,332 +714,6 @@ namespace {
         template <typename T>
         void operator()(const T&)
         {
-        }
-
-    private:
-        template <typename T>
-        void add_invoke_edges(method_vertex_descriptor mv, const T& insn)
-        {
-            auto add_call_edge = [&](const dex_reg_hdl& dst_reg_hdl,
-                                     const dex_reg_hdl& src_reg_hdl) {
-                auto src_v
-                        = make_vertex_for_reg(src_reg_hdl, d_.context, d_.pag);
-                auto dst_v
-                        = make_vertex_for_reg(dst_reg_hdl, d_.insn_hdl, d_.pag);
-
-                add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
-                         d_.pag);
-                // d_.propagate_incremental(src_v, dst_v);
-            };
-
-            const auto& mg = d_.vm.methods();
-            const auto& tgt_mvprop = mg[mv];
-            const auto& params = tgt_mvprop.params;
-            const auto& tgt_igprop = tgt_mvprop.insns[boost::graph_bundle];
-
-            if (tgt_mvprop.access_flags & acc_abstract) {
-                return;
-            }
-
-            // Parameters.
-            {
-                std::vector<int> reg_offsets;
-                {
-                    int offset = 0;
-
-                    // Non-static method has a this pointer as the first
-                    // argument.
-                    if (!(tgt_mvprop.access_flags & acc_static)) {
-                        reg_offsets.push_back(0);
-                        ++offset;
-                    }
-
-                    for (const auto& p : params) {
-                        char desc = p.descriptor[0];
-
-                        reg_offsets.push_back(
-                                (desc == 'L' || desc == '[') ? offset : -1);
-
-                        ++offset;
-                        if (desc == 'J' || desc == 'D') {
-                            // Ignore next register if the parameter is a
-                            // wide type.
-                            ++offset;
-                        }
-                    }
-                }
-
-                dex_insn_hdl tgt_entry_insn_hdl(tgt_mvprop.hdl, 0);
-                dex_reg_hdl dst_reg_hdl(tgt_entry_insn_hdl, 0);
-
-                auto actual_reg_start
-                        = tgt_igprop.registers_size - tgt_igprop.ins_size;
-                if (insn.is_regs_range()) {
-                    auto formal_reg_start = insn.regs[0].value;
-                    for (auto off : reg_offsets) {
-                        if (off != -1) {
-                            dst_reg_hdl.idx = actual_reg_start + off;
-                            for_each_incoming_reg(
-                                    formal_reg_start + off,
-                                    [&](const dex_reg_hdl& src_reg_hdl) {
-                                        add_call_edge(dst_reg_hdl, src_reg_hdl);
-                                    });
-                        }
-                    }
-                }
-                else {
-                    for (size_t i = 0; i < reg_offsets.size(); ++i) {
-                        auto off = reg_offsets[i];
-                        if (off != -1) {
-                            dst_reg_hdl.idx = actual_reg_start + off;
-                            for_each_incoming_reg(
-                                    insn.regs[i].value,
-                                    [&](const dex_reg_hdl& src_reg_hdl) {
-                                        add_call_edge(dst_reg_hdl, src_reg_hdl);
-                                    });
-                        }
-                    }
-                }
-            }
-
-            // Return value.
-            auto ret_desc = tgt_mvprop.jvm_hdl.return_descriptor()[0];
-            if (ret_desc == 'L' || ret_desc == '[') {
-                dex_insn_hdl tgt_exit_insn_hdl(
-                        tgt_mvprop.hdl, num_vertices(tgt_mvprop.insns) - 1);
-                dex_reg_hdl src_reg_hdl(tgt_exit_insn_hdl,
-                                        register_idx::idx_result);
-                dex_reg_hdl dst_reg_hdl(d_.insn_hdl, register_idx::idx_result);
-
-                auto src_v
-                        = make_vertex_for_reg(src_reg_hdl, d_.insn_hdl, d_.pag);
-                auto dst_v
-                        = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
-
-                add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
-                         d_.pag);
-                // d_.propagate_incremental(src_v, dst_v);
-            }
-        }
-
-        template <typename Func>
-        void for_each_incoming_reg(register_idx reg, Func f)
-        {
-            using boost::make_iterator_range;
-            using boost::type_erasure::any_cast;
-
-            dex_reg_hdl reg_hdl(d_.insn_hdl, reg.value);
-
-            for (const auto& e : make_iterator_range(in_edges(d_.iv, *d_.ig))) {
-                using edge_prop_t = insn_data_flow_edge_property;
-                const auto* de = any_cast<const edge_prop_t*>(&(*d_.ig)[e]);
-                if (de != nullptr && de->reg == reg) {
-                    reg_hdl.insn_hdl.idx = source(e, *d_.ig);
-                    f(reg_hdl);
-                }
-            }
-        }
-
-        void add_alloc_edge(register_idx dst_reg,
-                            const boost::optional<dex_type_hdl>& type)
-        {
-            dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
-
-            auto src_v = make_vertex_for_alloc(d_.insn_hdl, d_.pag);
-            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
-
-            d_.pag[src_v].type = type;
-            d_.pag[dst_v].type = type;
-
-            add_edge(src_v, dst_v, {pag_edge_property::kind_alloc}, d_.pag);
-            d_.propagate_all(src_v, dst_v);
-        }
-
-        void add_assign_edge(register_idx dst_reg, register_idx src_reg,
-                             const boost::optional<dex_type_hdl>& dst_type
-                             = boost::none)
-        {
-            using boost::make_iterator_range;
-            using boost::type_erasure::any_cast;
-
-            dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
-
-            // If the destination is the result register, we know that it
-            // comes from the return instruction. Thus we associate the
-            // result resiter to the exit instruction.
-            if (dst_reg == register_idx::idx_result) {
-                dst_reg_hdl.insn_hdl.idx = num_vertices(*d_.ig) - 1;
-            }
-
-            auto dst_v = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
-            d_.pag[dst_v].type = dst_type;
-
-            for_each_incoming_reg(src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
-                auto src_v
-                        = make_vertex_for_reg(src_reg_hdl, d_.context, d_.pag);
-
-                add_edge(src_v, dst_v, {pag_edge_property::kind_assign},
-                         d_.pag);
-                // d_.propagate_incremental(src_v, dst_v);
-            });
-        }
-
-        void add_astore_edge(register_idx src_reg, register_idx obj_reg,
-                             register_idx /*idx_reg*/)
-        {
-            for_each_incoming_reg(src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
-                for_each_incoming_reg(
-                        obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
-                            auto src_v = make_vertex_for_reg(
-                                    src_reg_hdl, d_.context, d_.pag);
-                            auto dst_v = make_vertex_for_reg_dot_array(
-                                    obj_reg_hdl, d_.context, d_.pag);
-                            auto obj_v = make_vertex_for_reg(
-                                    obj_reg_hdl, d_.context, d_.pag);
-
-                            d_.pag[obj_v].dereferenced_by.push_back(dst_v);
-                            unique_sort(d_.pag[obj_v].dereferenced_by);
-
-                            add_edge(src_v, dst_v,
-                                     {pag_edge_property::kind_astore}, d_.pag);
-                        });
-            });
-        }
-
-        void add_aload_edge(register_idx dst_reg, register_idx obj_reg,
-                            register_idx /*idx_reg*/)
-        {
-            dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
-
-            for_each_incoming_reg(obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
-                auto src_v = make_vertex_for_reg_dot_array(obj_reg_hdl,
-                                                           d_.context, d_.pag);
-                auto dst_v
-                        = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
-                auto obj_v
-                        = make_vertex_for_reg(obj_reg_hdl, d_.context, d_.pag);
-
-                d_.pag[obj_v].dereferenced_by.push_back(src_v);
-                unique_sort(d_.pag[obj_v].dereferenced_by);
-
-                add_edge(src_v, dst_v, {pag_edge_property::kind_aload}, d_.pag);
-            });
-        }
-
-        void add_istore_edge(register_idx src_reg, register_idx obj_reg,
-                             const dex_field_hdl& field_hdl)
-        {
-            const auto& fv = d_.vm.find_field(field_hdl, false);
-            if (!fv) {
-                std::cerr << "istore: field not found: "
-                          << d_.vm.jvm_hdl(field_hdl) << "\n";
-                return;
-            }
-
-            const auto& fg = d_.vm.fields();
-            if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
-                for_each_incoming_reg(src_reg, [&](const dex_reg_hdl&
-                                                           src_reg_hdl) {
-                    for_each_incoming_reg(
-                            obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
-                                auto src_v = make_vertex_for_reg(
-                                        src_reg_hdl, d_.context, d_.pag);
-                                auto dst_v = make_vertex_for_reg_dot_field(
-                                        obj_reg_hdl, field_hdl, d_.context,
-                                        d_.pag);
-                                auto obj_v = make_vertex_for_reg(
-                                        obj_reg_hdl, d_.context, d_.pag);
-
-                                d_.pag[obj_v].dereferenced_by.push_back(dst_v);
-                                unique_sort(d_.pag[obj_v].dereferenced_by);
-
-                                add_edge(src_v, dst_v,
-                                         {pag_edge_property::kind_istore},
-                                         d_.pag);
-                            });
-                });
-            }
-        }
-
-        void add_iload_edge(register_idx dst_reg, register_idx obj_reg,
-                            const dex_field_hdl& field_hdl)
-        {
-            const auto& fv = d_.vm.find_field(field_hdl, false);
-            if (!fv) {
-                std::cerr << "iload: field not found: "
-                          << d_.vm.jvm_hdl(field_hdl) << "\n";
-                return;
-            }
-
-            const auto& fg = d_.vm.fields();
-            if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
-                dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
-
-                for_each_incoming_reg(
-                        obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
-                            auto src_v = make_vertex_for_reg_dot_field(
-                                    obj_reg_hdl, field_hdl, d_.context, d_.pag);
-                            auto dst_v = make_vertex_for_reg(
-                                    dst_reg_hdl, d_.context, d_.pag);
-                            auto obj_v = make_vertex_for_reg(
-                                    obj_reg_hdl, d_.context, d_.pag);
-
-                            d_.pag[obj_v].dereferenced_by.push_back(src_v);
-                            unique_sort(d_.pag[obj_v].dereferenced_by);
-
-                            add_edge(src_v, dst_v,
-                                     {pag_edge_property::kind_iload}, d_.pag);
-                        });
-            }
-        }
-
-        void add_sstore_edge(register_idx src_reg,
-                             const dex_field_hdl& field_hdl)
-        {
-            const auto& fg = d_.vm.fields();
-            const auto& fv = d_.vm.find_field(field_hdl, false);
-            if (!fv) {
-                std::stringstream ss;
-                ss << "ailed to find the static field ";
-                ss << d_.vm.jvm_hdl(field_hdl);
-                throw std::runtime_error(ss.str());
-            }
-
-            if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
-                for_each_incoming_reg(
-                        src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
-                            auto src_v = make_vertex_for_reg(
-                                    src_reg_hdl, d_.context, d_.pag);
-                            auto dst_v = make_vertex_for_static_field(field_hdl,
-                                                                      d_.pag);
-
-                            add_edge(src_v, dst_v,
-                                     {pag_edge_property::kind_sstore}, d_.pag);
-                        });
-            }
-        }
-
-        void add_sload_edge(register_idx dst_reg,
-                            const dex_field_hdl& field_hdl)
-        {
-            const auto& fg = d_.vm.fields();
-            const auto& fv = d_.vm.find_field(field_hdl, false);
-            if (!fv) {
-                std::stringstream ss;
-                ss << "ailed to find the static field ";
-                ss << d_.vm.jvm_hdl(field_hdl);
-                throw std::runtime_error(ss.str());
-            }
-
-            if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
-                dex_reg_hdl dst_reg_hdl(d_.insn_hdl, dst_reg.value);
-
-                auto src_v = make_vertex_for_static_field(field_hdl, d_.pag);
-                auto dst_v
-                        = make_vertex_for_reg(dst_reg_hdl, d_.context, d_.pag);
-
-                add_edge(src_v, dst_v, {pag_edge_property::kind_sload}, d_.pag);
-            }
         }
 
     private:
@@ -710,6 +734,8 @@ namespace {
             make_vertices_from_method(entry_mv);
             simplify();
 
+#define PRINT_PROGRESS 0
+#if PRINT_PROGRESS
             int counter = 0;
             std::printf("%12s%12s%12s%12s%12s%12s\n", "counter", "worklist",
                         "vertices", "alloc", "alloc.field", "alloc.array");
@@ -721,13 +747,16 @@ namespace {
                             gprop.alloc_dot_field_vertex_lut.size(),
                             gprop.alloc_dot_array_vertex_lut.size());
             };
+#endif
 
             while (!d_.worklist.empty()) {
+#if PRINT_PROGRESS
                 constexpr int period = 10000;
                 if (counter % period == 0) {
                     print_stats();
                 }
                 counter++;
+#endif
 
                 // Pop a vertex from the d_.worklist.
                 auto v = d_.worklist.front();
@@ -744,21 +773,63 @@ namespace {
                 update_points_to_set(v);
                 update_dereferencer(v);
 
-                if (d_.on_the_fly_cg && d_.pag[v].virtual_invoke_receiver) {
-#if 0
-                    if (auto reg = get<pag_reg>(&d_.pag[v].vertex)) {
-                        auto mv = d_.vm.find_method(reg->hdl, false);
-                        make_vertices_from_method(*mv);
-                        simplify();
+                if (d_.on_the_fly_cg
+                    && !d_.pag[v].virtual_invoke_insns.empty()) {
+                    // Compute a set of actual types of objects pointed by the
+                    // in-set of the register.
+                    std::vector<dex_type_hdl> alloc_types;
+                    for (auto alloc_v : d_.pag[d_.pag[v].parent].in_set) {
+                        alloc_types.push_back(*d_.pag[alloc_v].type);
                     }
-#endif
+                    unique_sort(alloc_types);
+
+                    for (const auto& ih : d_.pag[v].virtual_invoke_insns) {
+                        auto mv = *d_.vm.find_method(ih.second.method_hdl,
+                                                     false);
+                        const insn_graph& ig = d_.vm.methods()[mv].insns;
+                        insn_vertex_descriptor iv = ih.second.idx;
+                        if (const auto* insn = get<insn_invoke>(&ig[iv].insn)) {
+                            // Target JVM method handle.
+                            auto target_jmh = d_.vm.jvm_hdl(insn->const_val);
+
+                            for (const auto& ath : alloc_types) {
+                                // Update the type of the target_jmh to the
+                                // actual one.
+                                target_jmh.type_hdl = d_.vm.jvm_hdl(ath);
+
+                                // Process the invoked method.
+                                auto mv = d_.vm.find_method(target_jmh, false);
+                                auto prev_context = d_.context;
+                                auto prev_insn_hdl = d_.insn_hdl;
+                                auto prev_iv = d_.iv;
+                                auto prev_ig = d_.ig;
+                                d_.context = ih.first;
+                                d_.insn_hdl = ih.second;
+                                d_.iv = iv;
+                                d_.ig = &ig;
+                                add_invoke_edges(d_, *mv, *insn);
+                                make_vertices_from_method(*mv, ih.second);
+                                d_.context = prev_context;
+                                d_.insn_hdl = prev_insn_hdl;
+                                d_.iv = prev_iv;
+                                d_.ig = prev_ig;
+
+                                simplify();
+                            }
+                        }
+                        else {
+                            throw std::runtime_error("shouldn't happen");
+                        }
+                    }
                 }
 
                 process_outgoing_edges(v);
 
                 d_.pag[d_.pag[v].parent].in_set.clear();
             }
+#if PRINT_PROGRESS
             print_stats();
+#endif
 
             return true;
         }
@@ -778,8 +849,7 @@ namespace {
 
             // Apply type filtering.
             if (const auto& type = d_.pag[v].type) {
-                auto cv = d_.vm.find_class(*type, false);
-                if (cv) {
+                if (auto cv = d_.vm.find_class(*type, false)) {
                     const auto& cg = d_.vm.classes();
                     auto it = std::remove_if(
                             begin(in_set), end(in_set),
@@ -926,11 +996,11 @@ namespace {
             }
 
             for (const auto& e : edges_to_add) {
-                auto adj = adjacent_vertices(e.first, d_.pag);
+                auto adj = adjacent_vertices(e.first, g);
                 if (std::find(adj.first, adj.second, e.second) == adj.second) {
                     // The edge hasn't been added: add it now.
                     add_edge(e.first, e.second,
-                             {pag_edge_property::kind_assign}, d_.pag);
+                             {pag_edge_property::kind_assign}, g);
                     d_.propagate_all(e.first, e.second);
                 }
             }
@@ -958,10 +1028,12 @@ namespace {
             }
         }
 
-        void make_vertices_from_method(const method_vertex_descriptor& root_mv)
+        void make_vertices_from_method(const method_vertex_descriptor& root_mv,
+                                       const dex_insn_hdl& root_context
+                                       = no_insn_hdl)
         {
             std::queue<invocation> invoc_queue;
-            invoc_queue.push({no_insn_hdl, root_mv});
+            invoc_queue.push({root_context, root_mv});
 
             for (; !invoc_queue.empty(); invoc_queue.pop()) {
                 auto invoc = invoc_queue.front();
@@ -979,14 +1051,15 @@ namespace {
                 const auto& mvprop = mg[mv];
                 const auto& ig = mvprop.insns;
 
+                ccg_ofs << "\"" << mvprop.hdl << "\"";
+                ccg_ofs << "[label=\"";
+                ccg_ofs << mvprop.jvm_hdl;
+                ccg_ofs << "\"]\n";
+
                 pag_insn_visitor vis(d_, invoc_queue);
                 for (auto iv : boost::make_iterator_range(vertices(ig))) {
                     d_.move_current_insn(&ig, iv);
                     boost::apply_visitor(vis, ig[iv].insn);
-                }
-
-                if (d_.context != no_insn_hdl) {
-                    // callsite->
                 }
             }
         }
@@ -1004,8 +1077,9 @@ namespace {
 bool jitana::update_points_to_graphs(pointer_assignment_graph& pag,
                                      contextual_call_graph& cg,
                                      virtual_machine& vm,
-                                     const method_vertex_descriptor& mv)
+                                     const method_vertex_descriptor& mv,
+                                     bool on_the_fly_cg)
 {
-    pag_updater updater(pag, cg, vm, true);
+    pag_updater updater(pag, cg, vm, on_the_fly_cg);
     return updater.update(mv);
 }

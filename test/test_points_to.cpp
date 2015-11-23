@@ -60,6 +60,8 @@ BOOST_AUTO_TEST_CASE(points_to)
 
     jitana::pointer_assignment_graph pag;
     jitana::contextual_call_graph cg;
+    jitana::pointer_assignment_graph pag_otf;
+    jitana::contextual_call_graph cg_otf;
 
     if (auto mv = vm.find_method(mh, true)) {
         vm.load_recursive(*mv);
@@ -78,12 +80,21 @@ BOOST_AUTO_TEST_CASE(points_to)
         std::cout << std::endl;
 
         // Apply points-to analysis.
-        jitana::update_points_to_graphs(pag, cg, vm, *mv);
+        jitana::update_points_to_graphs(pag, cg, vm, *mv, false);
+
+        // Apply points-to analysis with on-the-fly call graph generation.
+        jitana::update_points_to_graphs(pag_otf, cg_otf, vm, *mv, true);
     }
     else {
         throw std::runtime_error("failed to find the method");
     }
 
-    BOOST_CHECK(num_vertices(pag) == 51108);
-    BOOST_CHECK(num_edges(pag) == 141599);
+    std::cout << num_vertices(pag_otf) << "\n";
+    std::cout << num_edges(pag_otf) << "\n";
+
+    BOOST_CHECK(num_vertices(pag) == 51125);
+    BOOST_CHECK(num_edges(pag) == 141619);
+
+    BOOST_CHECK(num_vertices(pag_otf) == 2176);
+    BOOST_CHECK(num_edges(pag_otf) == 2509);
 }

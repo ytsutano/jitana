@@ -201,8 +201,8 @@ namespace jitana {
         std::vector<pag_vertex_descriptor> in_set;
         std::vector<pag_vertex_descriptor> points_to_set;
         std::vector<pag_vertex_descriptor> dereferenced_by;
+        std::vector<std::pair<dex_insn_hdl, dex_insn_hdl>> virtual_invoke_insns;
 
-        bool virtual_invoke_receiver = false;
         bool dirty = false;
     };
 
@@ -570,6 +570,12 @@ namespace jitana {
                         os_ << " " << x;
                     }
                     os_ << " ]";
+                }
+                if (!g_[v_].virtual_invoke_insns.empty()) {
+                    os_ << "|";
+                    for (const auto& ih : g_[v_].virtual_invoke_insns) {
+                        os_ << ih.first << ":" << ih.second << "()\\n";
+                    }
                 }
                 os_ << "}\"\n";
                 os_ << ",";

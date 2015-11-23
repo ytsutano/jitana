@@ -390,17 +390,65 @@ namespace {
         {
         }
 
+        void operator()(const insn_check_cast& x)
+        {
+#if 1
+            // The type may be an array.
+            vm_.find_class(x.const_val, true);
+#else
+            auto cv = vm_.find_class(x.const_val, true);
+            if (!cv) {
+                std::stringstream ss;
+                ss << x << "failed to find class " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
+            }
+#endif
+        }
+
         void operator()(const insn_new_instance& x)
         {
-            vm_.find_class(x.const_val, true);
+            auto cv = vm_.find_class(x.const_val, true);
+            if (!cv) {
+                std::stringstream ss;
+                ss << "failed to find class " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
+            }
         }
 
         void operator()(const insn_new_array&)
         {
+#if 0
+            auto cv = vm_.find_class(x.const_val, true);
+            if (!cv) {
+                std::stringstream ss;
+                ss << "failed to find class " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
+            }
+#endif
         }
 
         void operator()(const insn_filled_new_array&)
         {
+        }
+
+        void operator()(const insn_iget& x)
+        {
+            auto fv = vm_.find_field(x.const_val, true);
+            if (!fv) {
+                std::stringstream ss;
+                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
+            }
+        }
+
+        void operator()(const insn_iput& x)
+        {
+            auto fv = vm_.find_field(x.const_val, true);
+            if (!fv) {
+                std::stringstream ss;
+                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                throw std::runtime_error(ss.str());
+            }
         }
 
         void operator()(const insn_sget& x)
