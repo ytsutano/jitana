@@ -44,7 +44,6 @@ namespace jitana {
         using boost::type_erasure::any_cast;
 
         auto& mg = vm.methods();
-        const auto& ig = mg[v].insns;
 
         // Abort if we already have an outgoing call graph edge to avoid
         // creating duplicates. For performacnce, we should have flags
@@ -54,6 +53,8 @@ namespace jitana {
                 return;
             }
         }
+
+        auto ig = mg[v].insns;
 
         // Iterate over the instruction graph vertices.
         for (const auto& iv : boost::make_iterator_range(vertices(ig))) {

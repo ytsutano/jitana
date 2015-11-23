@@ -25,7 +25,7 @@ void class_loader::add_file(const std::string& filename)
 {
     dex_file_hdl file_hdl;
     file_hdl.loader_hdl = hdl_;
-    file_hdl.idx = impl_->dex_files.size();
+    file_hdl.idx = uint8_t(impl_->dex_files.size());
     impl_->dex_files.emplace_back(file_hdl, filename);
 }
 

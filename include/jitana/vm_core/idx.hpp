@@ -55,6 +55,11 @@ namespace jitana {
         {
         }
 
+        /// Creates an idx_base<Derived> instance with the specified index.
+        idx_base(unsigned index) : value(index)
+        {
+        }
+
         explicit operator int32_t() const
         {
             return value;
@@ -199,7 +204,6 @@ namespace jitana {
             return os;
         }
     };
-    static_assert(std::is_pod<register_idx>::value, "");
 }
 
 namespace std {

@@ -21,13 +21,21 @@
 #include "jitana/vm_core/opcode.hpp"
 #include "jitana/vm_core/access_flags.hpp"
 
+#if _MSC_VER
+#define JITANA_DEX_RAW_TYPES_PACKED
+#else
+#define JITANA_DEX_RAW_TYPES_PACKED __attribute__((packed))
+#endif
+
+#if _MSC_VER
+#pragma pack(push, 1)
+#endif
+
 namespace jitana {
     /// A string ID.
     struct dex_string_id {
-    private:
         uint32_t string_data_off_;
 
-    public:
         uint32_t string_data_off() const
         {
             return string_data_off_;
@@ -37,25 +45,22 @@ namespace jitana {
 
     /// A type ID.
     struct dex_type_id {
-    private:
         uint32_t descriptor_idx_;
 
-    public:
         dex_string_idx descriptor_idx() const
         {
             return descriptor_idx_;
         }
     };
     static_assert(std::is_pod<dex_type_id>::value, "");
+    static_assert(sizeof(dex_type_id) == 4, "");
 
     /// A prototype ID.
     struct dex_proto_id {
-    private:
         uint32_t shorty_idx_;
         uint32_t return_type_idx_;
         uint32_t parameters_off_;
 
-    public:
         dex_string_idx shorty_idx() const
         {
             return shorty_idx_;
@@ -72,15 +77,14 @@ namespace jitana {
         }
     };
     static_assert(std::is_pod<dex_proto_id>::value, "");
+    static_assert(sizeof(dex_proto_id) == 12, "");
 
     /// A field ID.
     struct dex_field_id {
-    private:
         uint16_t class_idx_;
         uint16_t type_idx_;
         uint32_t name_idx_;
 
-    public:
         dex_type_idx class_idx() const
         {
             return class_idx_;
@@ -97,15 +101,14 @@ namespace jitana {
         }
     };
     static_assert(std::is_pod<dex_field_id>::value, "");
+    static_assert(sizeof(dex_field_id) == 8, "");
 
     /// A method ID.
     struct dex_method_id {
-    private:
         uint16_t class_idx_;
         uint16_t proto_idx_;
         uint32_t name_idx_;
 
-    public:
         dex_type_idx class_idx() const
         {
             return class_idx_;
@@ -122,6 +125,7 @@ namespace jitana {
         }
     };
     static_assert(std::is_pod<dex_method_id>::value, "");
+    static_assert(sizeof(dex_method_id) == 8, "");
 
     namespace detail {
         struct dex_opt_header {
@@ -134,8 +138,9 @@ namespace jitana {
             uint32_t opt_size;
             uint32_t flags;
             uint32_t checksum;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
         static_assert(std::is_pod<dex_opt_header>::value, "");
+        static_assert(sizeof(dex_opt_header) == 40, "");
 
         struct dex_header {
             uint8_t magic[8];
@@ -161,11 +166,11 @@ namespace jitana {
             uint32_t class_defs_off;
             uint32_t data_size;
             uint32_t data_off;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
         static_assert(std::is_pod<dex_header>::value, "");
+        static_assert(sizeof(dex_header) == 112, "");
 
         struct dex_class_def {
-        private:
             uint32_t class_idx_;
             uint32_t access_flags_;
             uint32_t superclass_idx_;
@@ -175,7 +180,6 @@ namespace jitana {
             uint32_t class_data_off_;
             uint32_t static_vals_off_;
 
-        public:
             dex_type_idx class_idx() const
             {
                 return class_idx_;
@@ -214,8 +218,9 @@ namespace jitana {
             {
                 return static_vals_off_;
             }
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
         static_assert(std::is_pod<dex_class_def>::value, "");
+        static_assert(sizeof(dex_class_def) == 32, "");
 
         struct dex_code_header {
             uint16_t registers_size;
@@ -224,47 +229,54 @@ namespace jitana {
             uint16_t tries_size;
             uint32_t debug_info_off;
             uint32_t insns_size;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
         static_assert(std::is_pod<dex_code_header>::value, "");
+        static_assert(sizeof(dex_code_header) == 16, "");
 
         struct dex_try_item {
             uint32_t start_addr;
             uint16_t insn_count;
             uint16_t handler_off;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
         static_assert(std::is_pod<dex_try_item>::value, "");
+        static_assert(sizeof(dex_try_item) == 8, "");
 
         /// Format 10x: <tt>op</tt>.
         struct dex_fmt_10x {
             opcode op;
             uint8_t byte1;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_10x) == 2, "");
 
         /// Format 12x: <tt>op vA, vB</tt>.
         struct dex_fmt_12x {
             opcode op;
-            unsigned reg_a : 4;
-            unsigned reg_b : 4;
-        } __attribute__((packed));
+            uint8_t reg_a : 4;
+            uint8_t reg_b : 4;
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_12x) == 2, "");
 
         /// Format 11n: <tt>op vA, #+B</tt>.
         struct dex_fmt_11n {
             opcode op;
-            unsigned reg_a : 4;
-            signed imm_b : 4;
-        } __attribute__((packed));
+            uint8_t reg_a : 4;
+            int8_t imm_b : 4;
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_11n) == 2, "");
 
         /// Format 11x: <tt>op vAA</tt>.
         struct dex_fmt_11x {
             opcode op;
             uint8_t reg_a;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_11x) == 2, "");
 
         /// Format 10t: <tt>op +AA</tt>.
         struct dex_fmt_10t {
             opcode op;
             int8_t roff_a;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_10t) == 2, "");
 
         /// Format 20t: <tt>op +AAAA</tt>.
         struct dex_fmt_20t {
@@ -272,7 +284,8 @@ namespace jitana {
             int8_t byte1;
 
             int16_t roff_a;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_20t) == 4, "");
 
         /// Format 20bc: <tt>op AA, kind\@BBBB</tt>.
         struct dex_fmt_20bc {
@@ -280,7 +293,8 @@ namespace jitana {
             uint8_t err_a;
 
             uint16_t idx_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_20bc) == 4, "");
 
         /// Format 22x: <tt>op vAA, vBBBB</tt>.
         struct dex_fmt_22x {
@@ -288,7 +302,8 @@ namespace jitana {
             uint8_t reg_a;
 
             uint16_t reg_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_22x) == 4, "");
 
         /// Format 21t: <tt>op vAA, +BBBB</tt>.
         struct dex_fmt_21t {
@@ -296,7 +311,8 @@ namespace jitana {
             uint8_t reg_a;
 
             int16_t roff_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_21t) == 4, "");
 
         /// Format 21s: <tt>op vAA, #+BBBB</tt>.
         struct dex_fmt_21s {
@@ -304,7 +320,8 @@ namespace jitana {
             uint8_t reg_a;
 
             int16_t imm_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_21s) == 4, "");
 
         /// Format 21h: <tt>op vAA, #+BBBB0000</tt> or
         /// <tt>op vAA, #+BBBB000000000000</tt>.
@@ -313,7 +330,8 @@ namespace jitana {
             uint8_t reg_a;
 
             uint16_t imm_hi_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_21h) == 4, "");
 
         /// Format 21c: <tt>op vAA, kind\@BBBB</tt>.
         struct dex_fmt_21c {
@@ -321,7 +339,8 @@ namespace jitana {
             uint8_t reg_a;
 
             uint16_t idx_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_21c) == 4, "");
 
         /// Format 23x: <tt>op vAA, vBB, vCC</tt>.
         struct dex_fmt_23x {
@@ -330,7 +349,8 @@ namespace jitana {
 
             uint8_t reg_b;
             uint8_t reg_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_23x) == 4, "");
 
         /// Format 22b: <tt>op vAA, vBB, #+CC</tt>.
         struct dex_fmt_22b {
@@ -339,43 +359,48 @@ namespace jitana {
 
             uint8_t reg_b;
             int8_t imm_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_22b) == 4, "");
 
         /// Format 22t: <tt>op vA, vB, +CCCC</tt>.
         struct dex_fmt_22t {
             opcode op;
-            unsigned reg_a : 4;
-            unsigned reg_b : 4;
+            uint8_t reg_a : 4;
+            uint8_t reg_b : 4;
 
             int16_t roff_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_22t) == 4, "");
 
         /// Format 22s: <tt>op vA, vB, #+CCCC</tt>.
         struct dex_fmt_22s {
             opcode op;
-            unsigned reg_a : 4;
-            unsigned reg_b : 4;
+            uint8_t reg_a : 4;
+            uint8_t reg_b : 4;
 
             int16_t imm_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_22s) == 4, "");
 
         /// Format 22c: <tt>op vA, vB, kind\@CCCC</tt>.
         struct dex_fmt_22c {
             opcode op;
-            unsigned reg_a : 4;
-            unsigned reg_b : 4;
+            uint8_t reg_a : 4;
+            uint8_t reg_b : 4;
 
             uint16_t idx_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_22c) == 4, "");
 
         /// Format 22cs: <tt>op vA, vB, fieldoff\@CCCC</tt>.
         struct dex_fmt_22cs {
             opcode op;
-            unsigned reg_a : 4;
-            unsigned reg_b : 4;
+            uint8_t reg_a : 4;
+            uint8_t reg_b : 4;
 
             uint16_t off_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_22cs) == 4, "");
 
         /// Format 30t: <tt>op +AAAAAAAA</tt>.
         struct dex_fmt_30t {
@@ -383,7 +408,8 @@ namespace jitana {
             int8_t byte1;
 
             int32_t roff_a;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_30t) == 6, "");
 
         /// Format 32x: <tt>op vAAAA, vBBBB</tt>.
         struct dex_fmt_32x {
@@ -392,7 +418,8 @@ namespace jitana {
 
             uint16_t reg_a;
             uint16_t reg_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_32x) == 6, "");
 
         /// Format 31i: <tt>op vAA, #+BBBBBBBB</tt>.
         struct dex_fmt_31i {
@@ -400,7 +427,8 @@ namespace jitana {
             uint8_t reg_a;
 
             int32_t imm_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_31i) == 6, "");
 
         /// Format 31t: <tt>op vAA, +BBBBBBBB</tt>.
         struct dex_fmt_31t {
@@ -408,7 +436,8 @@ namespace jitana {
             uint8_t reg_a;
 
             int32_t roff_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_31t) == 6, "");
 
         /// Format 31c: <tt>op vAA, string\@BBBBBBBB</tt>.
         struct dex_fmt_31c {
@@ -416,50 +445,54 @@ namespace jitana {
             uint8_t reg_a;
 
             uint32_t idx_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_31c) == 6, "");
 
         /// Format 35c: <tt>op {vC, vD, vE, vF, vG}[size=A], meth\@BBBB</tt>.
         struct dex_fmt_35c {
             opcode op;
-            unsigned reg_g : 4;
-            unsigned size_a : 4;
+            uint8_t reg_g : 4;
+            uint8_t size_a : 4;
 
             uint16_t idx_b;
 
-            unsigned reg_c : 4;
-            unsigned reg_d : 4;
-            unsigned reg_e : 4;
-            unsigned reg_f : 4;
-        } __attribute__((packed));
+            uint8_t reg_c : 4;
+            uint8_t reg_d : 4;
+            uint8_t reg_e : 4;
+            uint8_t reg_f : 4;
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_35c) == 6, "");
 
         /// Format 35ms: <tt>op {vC, vD, vE, vF, vG}[size=A],
         /// vtaboff\@BBBB</tt>.
         struct dex_fmt_35ms {
             opcode op;
-            unsigned reg_g : 4;
-            unsigned size_a : 4;
+            uint8_t reg_g : 4;
+            uint8_t size_a : 4;
 
             uint16_t off_b;
 
-            unsigned reg_c : 4;
-            unsigned reg_d : 4;
-            unsigned reg_e : 4;
-            unsigned reg_f : 4;
-        } __attribute__((packed));
+            uint8_t reg_c : 4;
+            uint8_t reg_d : 4;
+            uint8_t reg_e : 4;
+            uint8_t reg_f : 4;
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_35ms) == 6, "");
 
         /// Format 35mi: <tt>op {vC, vD, vE, vF, vG}[size=A], inline\@BBBB</tt>.
         struct dex_fmt_35mi {
             opcode op;
-            unsigned reg_g : 4;
-            unsigned size_a : 4;
+            uint8_t reg_g : 4;
+            uint8_t size_a : 4;
 
             uint16_t off_b;
 
-            unsigned reg_c : 4;
-            unsigned reg_d : 4;
-            unsigned reg_e : 4;
-            unsigned reg_f : 4;
-        } __attribute__((packed));
+            uint8_t reg_c : 4;
+            uint8_t reg_d : 4;
+            uint8_t reg_e : 4;
+            uint8_t reg_f : 4;
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_35mi) == 6, "");
 
         /// Format 3rc: <tt>op {vCCCC - vNNNN}, kind\@BBBB</tt>.
         struct dex_fmt_3rc {
@@ -469,7 +502,8 @@ namespace jitana {
             uint16_t idx_b;
 
             uint16_t reg_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_3rc) == 6, "");
 
         /// Format 3rms: <tt>op {vCCCC - vNNNN}, vtaboff\@BBBB</tt>.
         struct dex_fmt_3rms {
@@ -479,7 +513,8 @@ namespace jitana {
             uint16_t off_b;
 
             uint16_t reg_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_3rms) == 6, "");
 
         /// Format 3rmi: <tt>op {vCCCC - vNNNN}, inline\@BBBB</tt>.
         struct dex_fmt_3rmi {
@@ -489,7 +524,8 @@ namespace jitana {
             uint16_t off_b;
 
             uint16_t reg_c;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_3rmi) == 6, "");
 
         /// Format 51l: <tt>op vAA, #+BBBBBBBBBBBBBBBB</tt>.
         struct dex_fmt_51l {
@@ -497,7 +533,8 @@ namespace jitana {
             uint8_t reg_a;
 
             int64_t imm_b;
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_51l) == 10, "");
 
         /// Format packed-switch-payload.
         ///
@@ -507,7 +544,8 @@ namespace jitana {
             uint16_t size;
             int32_t first_key;
             int32_t targets[1]; // Struct hack.
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_packed_switch_payload) == 12, "");
 
         /// Format sparse-switch-payload.
         ///
@@ -516,7 +554,8 @@ namespace jitana {
             uint16_t ident;
             uint16_t size;
             int32_t keys_targets[1]; // Struct hack.
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_sparse_switch_payload) == 8, "");
 
         /// Format fill-array-data-payload.
         ///
@@ -526,7 +565,8 @@ namespace jitana {
             uint16_t element_width;
             uint32_t size;
             uint8_t data[1]; // Struct hack.
-        } __attribute__((packed));
+        } JITANA_DEX_RAW_TYPES_PACKED;
+        static_assert(sizeof(dex_fmt_fill_array_data_payload) == 9, "");
 
         /// A raw instruction.
         union dex_raw_insn {
@@ -570,5 +610,9 @@ namespace jitana {
         static_assert(std::is_pod<dex_raw_insn>::value, "");
     }
 }
+
+#if _MSC_VER
+#pragma pack(pop)
+#endif
 
 #endif

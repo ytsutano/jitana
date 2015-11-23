@@ -29,7 +29,8 @@ namespace jitana {
         template <typename Edge>
         bool operator()(const Edge& e) const
         {
-            return boost::type_erasure::any_cast<const EdgePropType*>(&(*g)[e]);
+            namespace te = boost::type_erasure;
+            return te::any_cast<const EdgePropType*>(&(*g)[e]) != nullptr;
         }
     };
 

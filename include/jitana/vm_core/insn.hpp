@@ -305,7 +305,8 @@ namespace jitana {
             template <typename T>
             const RetType* operator()(const T& x) const
             {
-                return std::is_same<decltype(x.const_val), RetType>::value
+                return std::is_convertible<decltype(x.const_val),
+                                           RetType>::value
                         ? reinterpret_cast<const RetType*>(&x.const_val)
                         : nullptr;
             }

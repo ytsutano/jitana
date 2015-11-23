@@ -106,7 +106,7 @@ namespace jitana {
                 file_hdl.loader_hdl = hdl;
                 std::for_each(filenames_first, filenames_last,
                               [&](const auto& s) {
-                                  file_hdl.idx = dex_files.size();
+                                  file_hdl.idx = uint8_t(dex_files.size());
                                   dex_files.emplace_back(file_hdl, s);
                               });
             }

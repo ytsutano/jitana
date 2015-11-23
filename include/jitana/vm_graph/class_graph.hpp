@@ -141,7 +141,7 @@ namespace jitana {
         try {
             boost::depth_first_visit(rcig, subclass, vis, color_map);
         }
-        catch (const class_vertex_descriptor& cv) {
+        catch (const class_vertex_descriptor&) {
             return true;
         }
 

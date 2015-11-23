@@ -15,6 +15,7 @@
  */
 
 #define BOOST_TEST_MODULE test_insn
+#define BOOST_TEST_INCLUDED
 #include <boost/test/unit_test.hpp>
 
 #include <jitana/jitana.hpp>

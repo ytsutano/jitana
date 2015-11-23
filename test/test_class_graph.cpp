@@ -15,6 +15,7 @@
  */
 
 #define BOOST_TEST_MODULE test_class_graph
+#define BOOST_TEST_INCLUDED
 #include <boost/test/unit_test.hpp>
 
 #include <jitana/jitana.hpp>

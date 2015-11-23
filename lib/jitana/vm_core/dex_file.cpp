@@ -235,7 +235,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
         const auto& direct_methods_size = reader.get_uleb128();
         const auto& virtual_methods_size = reader.get_uleb128();
 
-        auto jvm_sizeof = [](char c) -> uint16_t {
+        auto jvm_sizeof = [](char c) -> uint8_t {
             switch (c) {
             case 'V': // void
             case 'B': // byte
@@ -423,7 +423,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 vtable.reserve(virtual_methods_size);
             }
 
-            const auto vtab_inherited_end = end(vtable);
+            const auto vtab_inherited_size = vtable.size();
             auto virtual_method_idx = dex_method_idx{0};
             for (size_t i = 0; i < virtual_methods_size; ++i) {
                 virtual_method_idx += reader.get_uleb128();
@@ -454,6 +454,8 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 mg[mv].insns = make_insn_graph(mvprop, code_off, dex_m_hdl,
                                                jvm_m_hdl);
 
+                const auto vtab_inherited_end
+                        = begin(vtable) + vtab_inherited_size;
                 auto it = std::find_if(begin(vtable), vtab_inherited_end,
                                        [&](const dex_method_hdl& h) {
                                            auto v = lookup_method_vertex(h, mg);
