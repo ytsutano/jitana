@@ -4,6 +4,10 @@
 #include "jitana/jitana.hpp"
 
 namespace jitana {
+    const dex_insn_hdl no_insn_hdl = {{{0, 0}, 0}, 0};
+}
+
+namespace jitana {
     struct pag_reg {
         dex_reg_hdl hdl;
 
@@ -319,6 +323,129 @@ namespace jitana {
     {
         const auto& lut = g[boost::graph_bundle].alloc_dot_array_vertex_lut;
         return lookup_pag_vertex(key, context, g, lut);
+    }
+}
+
+namespace jitana {
+    inline pag_vertex_descriptor
+    make_vertex_for_reg(const dex_reg_hdl& hdl, const dex_insn_hdl& context,
+                        pointer_assignment_graph& g)
+    {
+        pag_reg reg{hdl};
+        if (auto v = lookup_pag_reg_vertex(reg, context, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = reg;
+        g[v].context = context;
+        g[v].parent = v;
+        g[boost::graph_bundle].reg_vertex_lut.insert({reg, v});
+        return v;
+    }
+
+    inline pag_vertex_descriptor
+    make_vertex_for_alloc(const dex_insn_hdl& hdl, pointer_assignment_graph& g)
+    {
+        pag_alloc alloc{hdl};
+        if (auto v = lookup_pag_alloc_vertex(alloc, no_insn_hdl, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = alloc;
+        g[v].context = no_insn_hdl;
+        g[v].parent = v;
+        g[v].points_to_set.push_back(v);
+        g[boost::graph_bundle].alloc_vertex_lut.insert({alloc, v});
+        return v;
+    }
+
+    inline pag_vertex_descriptor make_vertex_for_reg_dot_field(
+            const dex_reg_hdl& reg_hdl, const dex_field_hdl& field_hdl,
+            const dex_insn_hdl& context, pointer_assignment_graph& g)
+    {
+        pag_reg_dot_field rdf{reg_hdl, field_hdl};
+        if (auto v = lookup_pag_reg_dot_field_vertex(rdf, context, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = rdf;
+        g[v].context = context;
+        g[v].parent = v;
+        g[boost::graph_bundle].reg_dot_field_vertex_lut.insert({rdf, v});
+        return v;
+    }
+
+    inline pag_vertex_descriptor
+    make_vertex_for_alloc_dot_field(const dex_insn_hdl& insn_hdl,
+                                    const dex_field_hdl& field_hdl,
+                                    pointer_assignment_graph& g)
+    {
+        pag_alloc_dot_field adf{insn_hdl, field_hdl};
+        if (auto v = lookup_pag_alloc_dot_field_vertex(adf, no_insn_hdl, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = adf;
+        g[v].context = no_insn_hdl;
+        g[v].parent = v;
+        g[boost::graph_bundle].alloc_dot_field_vertex_lut.insert({adf, v});
+        return v;
+    }
+
+    inline pag_vertex_descriptor
+    make_vertex_for_static_field(const dex_field_hdl& hdl,
+                                 pointer_assignment_graph& g)
+    {
+        pag_static_field sf{hdl};
+        if (auto v = lookup_pag_static_field_vertex(sf, no_insn_hdl, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = sf;
+        g[v].context = no_insn_hdl;
+        g[v].parent = v;
+        g[boost::graph_bundle].static_field_vertex_lut.insert({sf, v});
+        return v;
+    }
+
+    inline pag_vertex_descriptor
+    make_vertex_for_reg_dot_array(const dex_reg_hdl& hdl,
+                                  const dex_insn_hdl& context,
+                                  pointer_assignment_graph& g)
+    {
+        pag_reg_dot_array rda{hdl};
+        if (auto v = lookup_pag_reg_dot_array_vertex(rda, context, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = rda;
+        g[v].context = context;
+        g[v].parent = v;
+        g[boost::graph_bundle].reg_dot_array_vertex_lut.insert({rda, v});
+        return v;
+    }
+
+    inline pag_vertex_descriptor
+    make_vertex_for_alloc_dot_array(const dex_insn_hdl& insn_hdl,
+                                    pointer_assignment_graph& g)
+    {
+        pag_alloc_dot_array ada{insn_hdl};
+        if (auto v = lookup_pag_alloc_dot_array_vertex(ada, no_insn_hdl, g)) {
+            return *v;
+        }
+
+        auto v = add_vertex(g);
+        g[v].vertex = ada;
+        g[v].context = no_insn_hdl;
+        g[v].parent = v;
+        g[boost::graph_bundle].alloc_dot_array_vertex_lut.insert({ada, v});
+        return v;
     }
 }
 
