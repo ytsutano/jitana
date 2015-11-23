@@ -39,7 +39,7 @@ include_directories("include")
 
 SET(BOOST_MIN_VERSION "1.54.0")
 find_package(Boost ${BOOST_MIN_VERSION}
-    COMPONENTS system unit_test_framework REQUIRED)
+    COMPONENTS system iostreams REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
@@ -93,6 +93,9 @@ add_library(jitana
     lib/jitana/vm_core/insn_info.cpp
     lib/jitana/vm_core/virtual_machine.cpp
 )
+target_link_libraries(jitana
+    ${Boost_LIBRARIES}
+)
 
 #-------------------------------------------------------------------------------
 # jitana-graph
@@ -118,7 +121,6 @@ add_executable(jitana-travis
 )
 target_link_libraries(jitana-travis
     jitana
-    ${Boost_LIBRARIES}
     ${OPENGL_LIBRARY}
     ${GLUT_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}

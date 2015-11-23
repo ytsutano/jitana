@@ -26,6 +26,7 @@
 #include <cassert>
 #include <unordered_map>
 
+#include <boost/iostreams/device/mapped_file.hpp>
 #include <boost/optional.hpp>
 #include <boost/range.hpp>
 
@@ -223,11 +224,10 @@ namespace jitana {
                               uint32_t debug_info_off) const;
 
         struct mapped_file {
-            int fd = -1;
+            boost::iostreams::mapped_file_source file;
             const uint8_t* begin;
             size_t length;
             std::string name;
-            ~mapped_file();
         };
 
         const dex_file_hdl hdl_;

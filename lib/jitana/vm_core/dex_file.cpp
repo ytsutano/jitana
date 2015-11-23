@@ -17,25 +17,12 @@
 #include "jitana/vm_core/dex_file.hpp"
 #include "jitana/vm_core/insn_info.hpp"
 
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <cassert>
 
 #include <boost/range/iterator_range.hpp>
 
 using namespace jitana;
 using namespace jitana::detail;
-
-dex_file::mapped_file::~mapped_file()
-{
-    if (fd != -1) {
-        munmap(const_cast<void*>(reinterpret_cast<const void*>(begin)), length);
-    }
-}
 
 dex_file::dex_file(dex_file_hdl hdl, std::string filename,
                    const uint8_t* file_begin)
@@ -53,23 +40,13 @@ dex_file::dex_file(dex_file_hdl hdl, std::string filename)
         : hdl_(std::move(hdl)), file_(std::make_shared<mapped_file>())
 {
     file_->name = std::move(filename);
-
-    // Open the file.
-    file_->fd = open(file_->name.c_str(), O_RDONLY, 0);
-    if (file_->fd == -1) {
-        std::stringstream ss;
-        ss << "failed to open the DEX file ";
-        ss << file_->name;
-        throw std::runtime_error(ss.str());
-    }
+    file_->file.open(file_->name);
 
     // Get the file length.
-    file_->length = size_t(lseek(file_->fd, 0, SEEK_END));
+    file_->length = file_->file.end() - file_->file.begin();
 
-    // Map the file to the memory.
-    file_->begin
-            = static_cast<uint8_t*>(mmap(nullptr, file_->length, PROT_READ,
-                                         MAP_FILE | MAP_SHARED, file_->fd, 0));
+    // Get the file content.
+    file_->begin = reinterpret_cast<const uint8_t*>(file_->file.data());
 
     load_dex_file();
 }
