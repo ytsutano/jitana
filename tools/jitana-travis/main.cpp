@@ -195,7 +195,8 @@ static void handle_motion_event(int x, int y);
 static void handle_keyboard_event(unsigned char c, int x, int y);
 static void update_graphs();
 
-void draw_instruction(int index, uint32_t address, const insn_counter& counter)
+void draw_instruction(int index, uint32_t /*address*/,
+                      const insn_counter& counter)
 {
     constexpr int l = 128;
     float x = 14.0f * (index / l);
@@ -699,7 +700,7 @@ static void write_dtables()
     }
 }
 
-static void handle_keyboard_event(unsigned char c, int x, int y)
+static void handle_keyboard_event(unsigned char c, int /*x*/, int /*y*/)
 {
     switch (c) {
     case 'a':
@@ -763,7 +764,7 @@ static void reshape(int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void update(int value)
+void update(int /*value*/)
 {
     jitana::jdwp_connection conn;
     try {

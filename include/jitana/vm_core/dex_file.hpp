@@ -216,7 +216,6 @@ namespace jitana {
         void load_dex_file();
 
         insn_graph make_insn_graph(method_vertex_property& mvprop,
-                                   const detail::dex_class_def& class_def,
                                    uint32_t code_off,
                                    const dex_method_hdl& dex_m_hdl,
                                    const jvm_method_hdl& jvm_m_hdl) const;

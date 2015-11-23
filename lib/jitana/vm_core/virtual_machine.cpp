@@ -382,11 +382,11 @@ namespace {
         {
         }
 
-        void operator()(const insn_const_string& x)
+        void operator()(const insn_const_string&)
         {
         }
 
-        void operator()(const insn_const_class& x)
+        void operator()(const insn_const_class&)
         {
         }
 
@@ -395,11 +395,11 @@ namespace {
             vm_.find_class(x.const_val, true);
         }
 
-        void operator()(const insn_new_array& x)
+        void operator()(const insn_new_array&)
         {
         }
 
-        void operator()(const insn_filled_new_array& x)
+        void operator()(const insn_filled_new_array&)
         {
         }
 
@@ -485,7 +485,7 @@ namespace {
                 }
 
                 void discover_vertex(const method_vertex_descriptor& v,
-                                     method_inheritance_graph& g)
+                                     method_inheritance_graph&)
                 {
                     targets.push_back(v);
                 }
@@ -499,12 +499,12 @@ namespace {
             }
         }
 
-        void operator()(const insn_invoke_quick& x)
+        void operator()(const insn_invoke_quick&)
         {
         }
 
         template <typename T>
-        void operator()(const T& x)
+        void operator()(const T&)
         {
         }
 

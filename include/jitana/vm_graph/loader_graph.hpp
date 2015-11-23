@@ -74,7 +74,7 @@ namespace jitana {
     };
 
     inline void print_graphviz_attr(std::ostream& os,
-                                    const loader_parent_edge_property& prop)
+                                    const loader_parent_edge_property&)
     {
         os << "color=blue, fontcolor=blue, label=parent";
     }

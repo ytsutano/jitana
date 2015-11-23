@@ -128,7 +128,7 @@ namespace jitana {
     }
 
     struct no_const_val {
-        friend bool operator==(const no_const_val& x, const no_const_val& y)
+        friend bool operator==(const no_const_val&, const no_const_val&)
         {
             return true;
         }
@@ -138,7 +138,7 @@ namespace jitana {
             return !(x == y);
         }
 
-        friend std::ostream& operator<<(std::ostream& os, const no_const_val& x)
+        friend std::ostream& operator<<(std::ostream& os, const no_const_val&)
         {
             return os;
         }
@@ -149,7 +149,7 @@ namespace jitana {
         size_t size;
         std::vector<uint8_t> data;
 
-        friend bool operator==(const array_payload& x, const array_payload& y)
+        friend bool operator==(const array_payload&, const array_payload&)
         {
             return true;
         }
@@ -235,7 +235,7 @@ namespace jitana {
         return result;
     }
 
-    inline std::vector<register_idx> uses(const insn_entry& x)
+    inline std::vector<register_idx> uses(const insn_entry&)
     {
         return {};
     }

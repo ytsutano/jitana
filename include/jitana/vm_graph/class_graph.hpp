@@ -129,7 +129,7 @@ namespace jitana {
             }
 
             void discover_vertex(const class_vertex_descriptor& v,
-                                 const class_inheritance_graph& g)
+                                 const class_inheritance_graph&)
             {
                 if (v == superclass) {
                     throw v;

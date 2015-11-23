@@ -42,7 +42,7 @@ namespace jitana {
         os << ", label=\"" << prop.reg << "\"";
     }
 
-    inline void add_data_flow_edges(virtual_machine& vm, insn_graph& g)
+    inline void add_data_flow_edges(insn_graph& g)
     {
         if (num_vertices(g) == 0) {
             return;

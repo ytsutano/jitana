@@ -395,7 +395,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 mg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_m_hdl] = mv;
 
                 // Load the instructions.
-                mg[mv].insns = make_insn_graph(mg[mv], def, code_off, dex_m_hdl,
+                mg[mv].insns = make_insn_graph(mg[mv], code_off, dex_m_hdl,
                                                jvm_m_hdl);
 
                 dtable.push_back(dex_m_hdl);
@@ -451,7 +451,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
                 mg[boost::graph_bundle].jvm_hdl_to_vertex[jvm_m_hdl] = mv;
 
                 // Load the instructions.
-                mg[mv].insns = make_insn_graph(mvprop, def, code_off, dex_m_hdl,
+                mg[mv].insns = make_insn_graph(mvprop, code_off, dex_m_hdl,
                                                jvm_m_hdl);
 
                 auto it = std::find_if(begin(vtable), vtab_inherited_end,
@@ -564,7 +564,6 @@ dex_file::find_method_hdl(uint32_t dex_off) const
 }
 
 insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
-                                     const detail::dex_class_def& class_def,
                                      uint32_t code_off,
                                      const dex_method_hdl& dex_m_hdl,
                                      const jvm_method_hdl& jvm_m_hdl) const

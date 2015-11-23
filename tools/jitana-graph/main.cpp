@@ -95,7 +95,7 @@ void test_virtual_machine()
     // Compute the data-flow.
     std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
                   [&](const jitana::method_vertex_descriptor& v) {
-                      add_data_flow_edges(vm, vm.methods()[v].insns);
+                      add_data_flow_edges(vm.methods()[v].insns);
                   });
 
     std::cout << "# of classes: " << num_vertices(vm.classes()) << "\n";
