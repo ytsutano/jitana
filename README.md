@@ -45,7 +45,7 @@ Install all the dependencies first. Then
 
     mkdir build
     cd build
-    cmake ../jitana
+    cmake -DCMAKE_BUILD_TYPE=Release ../jitana
     make -j8
 
 ### Ubuntu
@@ -58,7 +58,7 @@ Then
 
     mkdir build
     cd build
-    CXX=/usr/bin/g++-4.9 cmake ../jitana
+    CXX=/usr/bin/g++-4.9 cmake -DCMAKE_BUILD_TYPE=Release ../jitana
     make -j8
 
 ### Windows
