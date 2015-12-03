@@ -134,7 +134,7 @@ void write_graphs(const jitana::virtual_machine& vm)
             std::stringstream ss;
             ss << "output/insn/" << vm.methods()[v].hdl << ".dot";
             std::ofstream ofs(ss.str());
-            write_graphviz_insn_graph(ofs, ig);
+            write_graphviz_insn_graph(ofs, ig, &vm);
         }
     }
 }

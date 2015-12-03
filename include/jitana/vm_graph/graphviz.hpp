@@ -225,9 +225,56 @@ namespace jitana {
         write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
     }
 
+    namespace detail {
+        class verbose_insn_const_print : public boost::static_visitor<bool> {
+        public:
+            verbose_insn_const_print(std::ostream& os,
+                                     const virtual_machine& vm)
+                    : os_(os), vm_(vm)
+            {
+            }
+
+            template <typename T>
+            bool operator()(const T& x)
+            {
+                return print(x.const_val);
+            }
+
+        private:
+            bool print(const dex_type_hdl& x)
+            {
+                os_ << vm_.jvm_hdl(x);
+                return true;
+            }
+
+            bool print(const dex_method_hdl& x)
+            {
+                os_ << vm_.jvm_hdl(x);
+                return true;
+            }
+
+            bool print(const dex_field_hdl& x)
+            {
+                os_ << vm_.jvm_hdl(x);
+                return true;
+            }
+
+            template <typename T>
+            bool print(const T&)
+            {
+                return false;
+            }
+
+        private:
+            std::ostream& os_;
+            const virtual_machine& vm_;
+        };
+    }
+
     /// Writes an instruction graph to the stream in the Graphviz format.
     template <typename InsnGraph>
-    inline void write_graphviz_insn_graph(std::ostream& os, const InsnGraph& g)
+    inline void write_graphviz_insn_graph(std::ostream& os, const InsnGraph& g,
+                                          const virtual_machine* vm = nullptr)
     {
         auto prop_writer = [&](std::ostream& os, const auto& v) {
             if (is_pseudo(g[v].insn)) {
@@ -252,6 +299,13 @@ namespace jitana {
                     label_ss << " (line=" << g[v].line_num << ")";
                 }
                 label_ss << "|" << g[v].insn;
+                if (vm) {
+                    label_ss << "\\l";
+                    detail::verbose_insn_const_print iprint(label_ss, *vm);
+                    if (boost::apply_visitor(iprint, g[v].insn)) {
+                        label_ss << "\\l";
+                    }
+                }
                 if (block_head) {
                     label_ss << "}}";
                 }
