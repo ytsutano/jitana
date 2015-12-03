@@ -154,7 +154,7 @@ void test_virtual_machine()
 
             std::cout << "Writing PAG..." << std::endl;
             std::ofstream ofs("output/pag.dot");
-            jitana::write_graphviz_pointer_assignment_graph(ofs, pag);
+            jitana::write_graphviz_pointer_assignment_graph(ofs, pag, &vm);
         }
     }
     else {

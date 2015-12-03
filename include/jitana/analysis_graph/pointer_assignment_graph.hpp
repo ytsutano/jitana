@@ -3,6 +3,8 @@
 
 #include "jitana/jitana.hpp"
 
+#include <sstream>
+
 namespace jitana {
     const dex_insn_hdl no_insn_hdl = {{{0, 0}, 0}, 0};
 }
@@ -450,76 +452,148 @@ namespace jitana {
 }
 
 namespace jitana {
-    template <typename PAG>
-    inline void write_graphviz_pointer_assignment_graph(std::ostream& os,
-                                                        const PAG& g)
-    {
+    namespace detail {
+        template <typename PAG>
         class vertex_printer : public boost::static_visitor<void> {
         public:
-            vertex_printer(std::ostream& os) : os_(os)
+            vertex_printer(std::ostream& os, pag_vertex_descriptor v,
+                           const PAG& g, const virtual_machine* vm)
+                    : os_(os), v_(v), g_(g), vm_(vm)
             {
             }
 
-            void operator()(const pag_reg&) const
+            void operator()(const pag_reg& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                if (vm_) {
+                    os_ << "\\nin "
+                        << escape(vm_->jvm_hdl(x.hdl.insn_hdl.method_hdl));
+                }
+                print_common_label();
                 os_ << "color=green,";
             }
 
-            void operator()(const pag_alloc&) const
+            void operator()(const pag_alloc& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                if (vm_) {
+                    os_ << "\\nin " << escape(vm_->jvm_hdl(x.hdl.method_hdl));
+                }
+                print_common_label();
                 os_ << "color=blue,";
             }
 
-            void operator()(const pag_reg_dot_field&) const
+            void operator()(const pag_reg_dot_field& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                if (vm_) {
+                    os_ << "\\n" << escape(vm_->jvm_hdl(x.field_hdl));
+                    os_ << "\\nin "
+                        << escape(vm_->jvm_hdl(x.reg_hdl.insn_hdl.method_hdl));
+                }
+                print_common_label();
                 os_ << "color=red,";
             }
 
-            void operator()(const pag_alloc_dot_field&) const
+            void operator()(const pag_alloc_dot_field& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                if (vm_) {
+                    os_ << "\\n" << escape(vm_->jvm_hdl(x.field_hdl));
+                }
+                print_common_label();
                 os_ << "color=yellow,";
             }
 
-            void operator()(const pag_static_field&) const
+            void operator()(const pag_static_field& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                if (vm_) {
+                    os_ << "\\n" << escape(vm_->jvm_hdl(x.hdl));
+                }
+                print_common_label();
                 os_ << "color=orange,";
             }
 
-            void operator()(const pag_reg_dot_array&) const
+            void operator()(const pag_reg_dot_array& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                if (vm_) {
+                    os_ << "\\nin "
+                        << escape(vm_->jvm_hdl(x.hdl.insn_hdl.method_hdl));
+                }
+                print_common_label();
                 os_ << "color=black,";
             }
 
-            void operator()(const pag_alloc_dot_array&) const
+            void operator()(const pag_alloc_dot_array& x) const
             {
+                os_ << "label=\"{";
+                os_ << escape(x);
+                print_common_label();
                 os_ << "color=gray,";
             }
 
         private:
-            std::ostream& os_;
-        };
+            template <typename T>
+            std::string escape(const T& x) const
+            {
+                std::stringstream ss;
+                ss << x;
+                return std::regex_replace(ss.str(), std::regex("<|>"), "\\$&");
+            }
 
+            void print_common_label() const
+            {
+                if (g_[v_].context.idx != 0) {
+                    os_ << "|Ctx: " << g_[v_].context;
+                    if (vm_) {
+                        os_ << "\\l= "
+                            << vm_->jvm_hdl(g_[v_].context.method_hdl) << "\\l";
+                    }
+                }
+                if (g_[v_].type) {
+                    os_ << "|Type: " << *g_[v_].type;
+                    if (vm_) {
+                        os_ << "\\l= " << vm_->jvm_hdl(*g_[v_].type) << "\\l";
+                    }
+                }
+                if (!g_[g_[v_].parent].points_to_set.empty()) {
+                    os_ << "|[";
+                    for (auto x : g_[g_[v_].parent].points_to_set) {
+                        os_ << " " << x;
+                    }
+                    os_ << " ]";
+                }
+                os_ << "}\"\n";
+                os_ << ",";
+            }
+
+        private:
+            std::ostream& os_;
+            pag_vertex_descriptor v_;
+            const PAG& g_;
+            const virtual_machine* vm_;
+        };
+    }
+
+    template <typename PAG>
+    inline void
+    write_graphviz_pointer_assignment_graph(std::ostream& os, const PAG& g,
+                                            const virtual_machine* vm = nullptr)
+    {
         auto vprop_writer = [&](std::ostream& os, const auto& v) {
 #if 1
             os << "[";
-            os << "label=\"" << g[v].vertex;
-            if (g[v].context.idx != 0) {
-                os << "\\n(" << g[v].context << ")";
-            }
-            if (g[v].type) {
-                os << "\\nType: " << *g[v].type;
-            }
-            if (!g[g[v].parent].points_to_set.empty()) {
-                os << "\\n[";
-                for (auto x : g[g[v].parent].points_to_set) {
-                    os << " " << x;
-                }
-                os << " ]";
-            }
-            os << "\"\n";
-            os << ",";
-            boost::apply_visitor(vertex_printer(os), g[v].vertex);
-            os << "shape=rectangle";
+            boost::apply_visitor(detail::vertex_printer<PAG>(os, v, g, vm),
+                                 g[v].vertex);
+            os << "shape=record";
             os << "]";
 #else
             os << "[";
