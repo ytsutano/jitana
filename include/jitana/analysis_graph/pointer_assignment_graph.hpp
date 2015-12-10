@@ -468,7 +468,7 @@ namespace jitana {
                 os_ << escape(x);
                 if (vm_) {
                     os_ << "\\nin "
-                        << escape(vm_->jvm_hdl(x.hdl.insn_hdl.method_hdl));
+                        << escape(vm_->make_jvm_hdl(x.hdl.insn_hdl.method_hdl));
                 }
                 print_common_label();
                 os_ << "color=green,";
@@ -479,7 +479,8 @@ namespace jitana {
                 os_ << "label=\"{";
                 os_ << escape(x);
                 if (vm_) {
-                    os_ << "\\nin " << escape(vm_->jvm_hdl(x.hdl.method_hdl));
+                    os_ << "\\nin "
+                        << escape(vm_->make_jvm_hdl(x.hdl.method_hdl));
                 }
                 print_common_label();
                 os_ << "color=blue,";
@@ -490,9 +491,9 @@ namespace jitana {
                 os_ << "label=\"{";
                 os_ << escape(x);
                 if (vm_) {
-                    os_ << "\\n" << escape(vm_->jvm_hdl(x.field_hdl));
-                    os_ << "\\nin "
-                        << escape(vm_->jvm_hdl(x.reg_hdl.insn_hdl.method_hdl));
+                    os_ << "\\n" << escape(vm_->make_jvm_hdl(x.field_hdl));
+                    os_ << "\\nin " << escape(vm_->make_jvm_hdl(
+                                               x.reg_hdl.insn_hdl.method_hdl));
                 }
                 print_common_label();
                 os_ << "color=red,";
@@ -503,7 +504,7 @@ namespace jitana {
                 os_ << "label=\"{";
                 os_ << escape(x);
                 if (vm_) {
-                    os_ << "\\n" << escape(vm_->jvm_hdl(x.field_hdl));
+                    os_ << "\\n" << escape(vm_->make_jvm_hdl(x.field_hdl));
                 }
                 print_common_label();
                 os_ << "color=yellow,";
@@ -514,7 +515,7 @@ namespace jitana {
                 os_ << "label=\"{";
                 os_ << escape(x);
                 if (vm_) {
-                    os_ << "\\n" << escape(vm_->jvm_hdl(x.hdl));
+                    os_ << "\\n" << escape(vm_->make_jvm_hdl(x.hdl));
                 }
                 print_common_label();
                 os_ << "color=orange,";
@@ -526,7 +527,7 @@ namespace jitana {
                 os_ << escape(x);
                 if (vm_) {
                     os_ << "\\nin "
-                        << escape(vm_->jvm_hdl(x.hdl.insn_hdl.method_hdl));
+                        << escape(vm_->make_jvm_hdl(x.hdl.insn_hdl.method_hdl));
                 }
                 print_common_label();
                 os_ << "color=black,";
@@ -555,13 +556,15 @@ namespace jitana {
                     os_ << "|Ctx: " << g_[v_].context;
                     if (vm_) {
                         os_ << "\\l= "
-                            << vm_->jvm_hdl(g_[v_].context.method_hdl) << "\\l";
+                            << vm_->make_jvm_hdl(g_[v_].context.method_hdl)
+                            << "\\l";
                     }
                 }
                 if (g_[v_].type) {
                     os_ << "|Type: " << *g_[v_].type;
                     if (vm_) {
-                        os_ << "\\l= " << vm_->jvm_hdl(*g_[v_].type) << "\\l";
+                        os_ << "\\l= " << vm_->make_jvm_hdl(*g_[v_].type)
+                            << "\\l";
                     }
                 }
                 if (!g_[g_[v_].parent].points_to_set.empty()) {

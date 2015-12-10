@@ -102,7 +102,7 @@ virtual_machine::find_class(const dex_type_hdl& hdl, bool try_load)
         return cv;
     }
 
-    auto found_class = find_class(jvm_hdl(hdl), try_load);
+    auto found_class = find_class(make_jvm_hdl(hdl), try_load);
 
     if (found_class) {
         // Remember the initiating handle.
@@ -181,7 +181,7 @@ virtual_machine::find_method(const dex_method_hdl& hdl, bool try_load)
         return mv;
     }
 
-    auto found_method = find_method(jvm_hdl(hdl), try_load);
+    auto found_method = find_method(make_jvm_hdl(hdl), try_load);
 
     if (found_method) {
         // Remember the initiating handle.
@@ -260,7 +260,7 @@ virtual_machine::find_field(const dex_field_hdl& hdl, bool try_load)
         return fv;
     }
 
-    auto found_field = find_field(jvm_hdl(hdl), try_load);
+    auto found_field = find_field(make_jvm_hdl(hdl), try_load);
 
     if (found_field) {
         // Remember the initiating handle.
@@ -320,7 +320,7 @@ bool virtual_machine::load_all_classes(const class_loader_hdl& loader_hdl)
     return loaders_[*lv].loader.load_all_classes(*this);
 }
 
-jvm_type_hdl virtual_machine::jvm_hdl(const dex_type_hdl& type_hdl) const
+jvm_type_hdl virtual_machine::make_jvm_hdl(const dex_type_hdl& type_hdl) const
 {
     const auto& loader_hdl = type_hdl.file_hdl.loader_hdl;
 
@@ -335,7 +335,8 @@ jvm_type_hdl virtual_machine::jvm_hdl(const dex_type_hdl& type_hdl) const
     return {loader_hdl, loaders_[*lv].loader.descriptor(type_hdl)};
 }
 
-jvm_method_hdl virtual_machine::jvm_hdl(const dex_method_hdl& method_hdl) const
+jvm_method_hdl
+virtual_machine::make_jvm_hdl(const dex_method_hdl& method_hdl) const
 {
     const auto& loader_hdl = method_hdl.file_hdl.loader_hdl;
 
@@ -352,7 +353,8 @@ jvm_method_hdl virtual_machine::jvm_hdl(const dex_method_hdl& method_hdl) const
             loader.unique_name(method_hdl)};
 }
 
-jvm_field_hdl virtual_machine::jvm_hdl(const dex_field_hdl& field_hdl) const
+jvm_field_hdl
+virtual_machine::make_jvm_hdl(const dex_field_hdl& field_hdl) const
 {
     const auto& loader_hdl = field_hdl.file_hdl.loader_hdl;
 
@@ -410,7 +412,7 @@ namespace {
             auto cv = vm_.find_class(x.const_val, true);
             if (!cv) {
                 std::stringstream ss;
-                ss << "failed to find class " << vm_.jvm_hdl(x.const_val);
+                ss << "failed to find class " << vm_.make_jvm_hdl(x.const_val);
                 throw std::runtime_error(ss.str());
             }
         }
@@ -436,7 +438,7 @@ namespace {
             auto fv = vm_.find_field(x.const_val, true);
             if (!fv) {
                 std::stringstream ss;
-                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                ss << "failed to find field " << vm_.make_jvm_hdl(x.const_val);
                 throw std::runtime_error(ss.str());
             }
         }
@@ -446,7 +448,7 @@ namespace {
             auto fv = vm_.find_field(x.const_val, true);
             if (!fv) {
                 std::stringstream ss;
-                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                ss << "failed to find field " << vm_.make_jvm_hdl(x.const_val);
                 throw std::runtime_error(ss.str());
             }
         }
@@ -456,7 +458,7 @@ namespace {
             auto fv = vm_.find_field(x.const_val, true);
             if (!fv) {
                 std::stringstream ss;
-                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                ss << "failed to find field " << vm_.make_jvm_hdl(x.const_val);
                 throw std::runtime_error(ss.str());
             }
 
@@ -477,7 +479,7 @@ namespace {
             auto fv = vm_.find_field(x.const_val, true);
             if (!fv) {
                 std::stringstream ss;
-                ss << "failed to find field " << vm_.jvm_hdl(x.const_val);
+                ss << "failed to find field " << vm_.make_jvm_hdl(x.const_val);
                 throw std::runtime_error(ss.str());
             }
 

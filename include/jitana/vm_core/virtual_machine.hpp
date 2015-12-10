@@ -136,13 +136,13 @@ namespace jitana {
         }
 
         /// Returns the JVM type handle from the DEX type handle.
-        jvm_type_hdl jvm_hdl(const dex_type_hdl& type_hdl) const;
+        jvm_type_hdl make_jvm_hdl(const dex_type_hdl& type_hdl) const;
 
         /// Returns the JVM method handle from the DEX method handle.
-        jvm_method_hdl jvm_hdl(const dex_method_hdl& method_hdl) const;
+        jvm_method_hdl make_jvm_hdl(const dex_method_hdl& method_hdl) const;
 
         /// Returns the JVM field handle from the DEX field handle.
-        jvm_field_hdl jvm_hdl(const dex_field_hdl& field_hdl) const;
+        jvm_field_hdl make_jvm_hdl(const dex_field_hdl& field_hdl) const;
 
     private:
         loader_graph loaders_;

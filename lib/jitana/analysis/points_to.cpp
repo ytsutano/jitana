@@ -337,8 +337,8 @@ namespace {
     {
         const auto& fv = d_.vm.find_field(field_hdl, false);
         if (!fv) {
-            std::cerr << "istore: field not found: " << d_.vm.jvm_hdl(field_hdl)
-                      << "\n";
+            std::cerr << "istore: field not found: "
+                      << d_.vm.make_jvm_hdl(field_hdl) << "\n";
             return;
         }
 
@@ -371,8 +371,8 @@ namespace {
     {
         const auto& fv = d_.vm.find_field(field_hdl, false);
         if (!fv) {
-            std::cerr << "iload: field not found: " << d_.vm.jvm_hdl(field_hdl)
-                      << "\n";
+            std::cerr << "iload: field not found: "
+                      << d_.vm.make_jvm_hdl(field_hdl) << "\n";
             return;
         }
 
@@ -407,7 +407,7 @@ namespace {
         if (!fv) {
             std::stringstream ss;
             ss << "ailed to find the static field ";
-            ss << d_.vm.jvm_hdl(field_hdl);
+            ss << d_.vm.make_jvm_hdl(field_hdl);
             throw std::runtime_error(ss.str());
         }
 
@@ -434,7 +434,7 @@ namespace {
         if (!fv) {
             std::stringstream ss;
             ss << "ailed to find the static field ";
-            ss << d_.vm.jvm_hdl(field_hdl);
+            ss << d_.vm.make_jvm_hdl(field_hdl);
             throw std::runtime_error(ss.str());
         }
 
@@ -489,7 +489,7 @@ namespace {
             auto cv = d_.vm.find_class(x.const_val, false);
             if (!cv) {
                 std::cerr << "insn_check_cast: class not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -529,7 +529,7 @@ namespace {
             auto cv = d_.vm.find_class(x.const_val, false);
             if (!cv) {
                 std::cerr << "insn_new_instance: class not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -584,7 +584,7 @@ namespace {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
                 std::cerr << "insn_iget: field not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -596,7 +596,7 @@ namespace {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
                 std::cerr << "insn_iput: field not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -608,7 +608,7 @@ namespace {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
                 std::cerr << "insn_sget: field not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -631,7 +631,7 @@ namespace {
             auto fv = d_.vm.find_field(x.const_val, false);
             if (!fv) {
                 std::cerr << "insn_sput: field not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -654,7 +654,7 @@ namespace {
             auto mv = d_.vm.find_method(x.const_val, false);
             if (!mv) {
                 std::cerr << "insn_invoke: method not found: "
-                          << d_.vm.jvm_hdl(x.const_val) << "\n";
+                          << d_.vm.make_jvm_hdl(x.const_val) << "\n";
                 return;
             }
 
@@ -790,12 +790,13 @@ namespace {
                         insn_vertex_descriptor iv = ih.second.idx;
                         if (const auto* insn = get<insn_invoke>(&ig[iv].insn)) {
                             // Target JVM method handle.
-                            auto target_jmh = d_.vm.jvm_hdl(insn->const_val);
+                            auto target_jmh
+                                    = d_.vm.make_jvm_hdl(insn->const_val);
 
                             for (const auto& ath : alloc_types) {
                                 // Update the type of the target_jmh to the
                                 // actual one.
-                                target_jmh.type_hdl = d_.vm.jvm_hdl(ath);
+                                target_jmh.type_hdl = d_.vm.make_jvm_hdl(ath);
 
                                 // Process the invoked method.
                                 auto mv = d_.vm.find_method(target_jmh, false);

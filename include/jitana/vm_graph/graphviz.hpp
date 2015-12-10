@@ -243,19 +243,19 @@ namespace jitana {
         private:
             bool print(const dex_type_hdl& x)
             {
-                os_ << vm_.jvm_hdl(x);
+                os_ << vm_.make_jvm_hdl(x);
                 return true;
             }
 
             bool print(const dex_method_hdl& x)
             {
-                os_ << vm_.jvm_hdl(x);
+                os_ << vm_.make_jvm_hdl(x);
                 return true;
             }
 
             bool print(const dex_field_hdl& x)
             {
-                os_ << vm_.jvm_hdl(x);
+                os_ << vm_.make_jvm_hdl(x);
                 return true;
             }
 
