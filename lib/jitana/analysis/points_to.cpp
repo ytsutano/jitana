@@ -447,7 +447,7 @@ namespace {
             add_edge(src_v, dst_v, {pag_edge_property::kind_sload}, d_.pag);
         }
     }
-};
+}
 
 namespace {
     class pag_insn_visitor : public boost::static_visitor<void> {
