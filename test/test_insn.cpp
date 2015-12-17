@@ -39,6 +39,27 @@ BOOST_AUTO_TEST_CASE(check_equality)
     BOOST_CHECK(!(i4 == i5));
     BOOST_CHECK(!(i4 == i6));
 
+    BOOST_CHECK(op(i0) == op(i0));
+    BOOST_CHECK(op(i0) == op(i1));
+    BOOST_CHECK(op(i4) == op(i4));
+    BOOST_CHECK(op(i0) == op(i2));
+    BOOST_CHECK(op(i4) == op(i5));
+    BOOST_CHECK(op(i4) != op(i6));
+
+    BOOST_CHECK(regs(i0) == regs(i0));
+    BOOST_CHECK(regs(i0) == regs(i1));
+    BOOST_CHECK(regs(i4) == regs(i4));
+    BOOST_CHECK(regs(i0) != regs(i2));
+    BOOST_CHECK(regs(i4) == regs(i5));
+    BOOST_CHECK(regs(i4) == regs(i6));
+
+    BOOST_CHECK(jitana::const_val<jitana::dex_field_hdl>(i4)
+                == jitana::const_val<jitana::dex_field_hdl>(i4));
+    BOOST_CHECK(jitana::const_val<jitana::dex_field_hdl>(i4)
+                != jitana::const_val<jitana::dex_field_hdl>(i5));
+    BOOST_CHECK(jitana::const_val<jitana::dex_field_hdl>(i4)
+                != jitana::const_val<jitana::dex_field_hdl>(i6));
+
 #if 0
     // Check the inequality operators.
     // Note: this can only be compiled with Boost 1.58 or later due to a bug:

@@ -31,6 +31,7 @@
 
 #include <boost/variant.hpp>
 #include <boost/mpl/vector/vector40.hpp>
+#include <boost/range/iterator_range.hpp>
 
 namespace jitana {
     namespace detail {
@@ -296,6 +297,24 @@ namespace jitana {
     inline opcode op(const insn& x)
     {
         return boost::apply_visitor(detail::extract_op(), x);
+    }
+
+    namespace detail {
+        struct extract_regs
+                : public boost::
+                          static_visitor<boost::iterator_range<const register_idx*>> {
+            template <typename T>
+            boost::iterator_range<const register_idx*>
+            operator()(const T& x) const
+            {
+                return boost::make_iterator_range(begin(x.regs), end(x.regs));
+            }
+        };
+    }
+
+    inline boost::iterator_range<const register_idx*> regs(const insn& x)
+    {
+        return boost::apply_visitor(detail::extract_regs(), x);
     }
 
     namespace detail {
