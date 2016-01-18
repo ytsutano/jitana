@@ -24,6 +24,7 @@
 #include <jitana/jitana.hpp>
 #include <jitana/util/jdwp.hpp>
 #include <jitana/analysis/call_graph.hpp>
+#include <jitana/analysis/data_flow.hpp>
 
 #include <unistd.h>
 #include <sys/wait.h>
@@ -737,6 +738,15 @@ static void handle_keyboard_event(unsigned char c, int /*x*/, int /*y*/)
     case 'P':
         periodic_output = !periodic_output;
         std::cout << "periodic_output = " << periodic_output << "\n";
+        break;
+    case 'd':
+    case 'D':
+        // Compute the data-flow.
+        std::for_each(vertices(vm.methods()).first,
+                      vertices(vm.methods()).second,
+                      [&](const jitana::method_vertex_descriptor& v) {
+                          add_data_flow_edges(vm.methods()[v].insns);
+                      });
         break;
     }
     glutPostRedisplay();
