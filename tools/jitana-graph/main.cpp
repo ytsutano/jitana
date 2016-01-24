@@ -37,57 +37,58 @@ void test_virtual_machine()
     jitana::virtual_machine vm;
 
     {
-        const auto& filenames = {"../dex/framework/core.dex",
-                                 "../dex/framework/framework.dex",
-                                 "../dex/framework/framework2.dex",
-                                 "../dex/framework/ext.dex",
-                                 "../dex/framework/conscrypt.dex",
-                                 "../dex/framework/okhttp.dex",
-                                 "../dex/framework/core-junit.dex",
-                                 "../dex/framework/android.test.runner.dex",
-                                 "../dex/framework/android.policy.dex"};
+        const auto& filenames
+                = {"../../../dex/framework/core.dex",
+                   "../../../dex/framework/framework.dex",
+                   "../../../dex/framework/framework2.dex",
+                   "../../../dex/framework/ext.dex",
+                   "../../../dex/framework/conscrypt.dex",
+                   "../../../dex/framework/okhttp.dex",
+                   "../../../dex/framework/core-junit.dex",
+                   "../../../dex/framework/android.test.runner.dex",
+                   "../../../dex/framework/android.policy.dex"};
         jitana::class_loader loader(11, "SystemLoader", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader);
     }
 
     {
-        const auto& filenames = {"../dex/app/instagram_classes.dex"};
+        const auto& filenames = {"../../../dex/app/instagram_classes.dex"};
         jitana::class_loader loader(22, "Instagram", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
 
     {
-        const auto& filenames = {"../dex/app/test.dex"};
+        const auto& filenames = {"../../../dex/app/test.dex"};
         jitana::class_loader loader(33, "Test", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
 
     {
-        const auto& filenames = {"../dex/app/super_depth_classes.dex"};
+        const auto& filenames = {"../../../dex/app/super_depth_classes.dex"};
         jitana::class_loader loader(44, "SuperDepth", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
 
     {
-        const auto& filenames = {"../dex/small_tests/01/01.dex"};
+        const auto& filenames = {"../../../dex/small_tests/01/01.dex"};
         jitana::class_loader loader(55, "SmallTest01", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
 
     {
-        const auto& filenames = {"../dex/small_tests/02/02.dex"};
+        const auto& filenames = {"../../../dex/small_tests/02/02.dex"};
         jitana::class_loader loader(66, "SmallTest02", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
 
     {
-        const auto& filenames = {"../dex/small_tests/03/03.dex"};
+        const auto& filenames = {"../../../dex/small_tests/03/03.dex"};
         jitana::class_loader loader(77, "SmallTest03", begin(filenames),
                                     end(filenames));
         vm.add_loader(loader, 11);

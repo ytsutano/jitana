@@ -103,39 +103,15 @@ target_link_libraries(jitana
 )
 
 #-------------------------------------------------------------------------------
-# jitana-graph
+# Tools
 #-------------------------------------------------------------------------------
 
-add_executable(jitana-graph
-    tools/jitana-graph/main.cpp
-)
-target_link_libraries(jitana-graph
-    jitana
-)
-
-#-------------------------------------------------------------------------------
-# jitana-travis
-#-------------------------------------------------------------------------------
-
-find_package(OpenGL)
-find_package(GLUT)
-find_package(Threads)
-
-add_executable(jitana-travis
-    tools/jitana-travis/main.cpp
-)
-target_link_libraries(jitana-travis
-    jitana
-    ${OPENGL_LIBRARY}
-    ${GLUT_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-)
-add_custom_target(jitana-travis-copy-files
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/tools/jitana-travis/scripts
-        ${CMAKE_CURRENT_BINARY_DIR}
-)
-add_dependencies(jitana-travis jitana-travis-copy-files)
+file(GLOB TOOL_DIRS tools/*)
+foreach(TOOL_DIR ${TOOL_DIRS})
+    if(IS_DIRECTORY ${TOOL_DIR})
+        add_subdirectory(${TOOL_DIR})
+    endif()
+endforeach()
 
 #-------------------------------------------------------------------------------
 # Testing

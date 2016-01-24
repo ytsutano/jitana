@@ -823,15 +823,15 @@ int main(int argc, char** argv)
 
     {
         std::vector<std::string> filenames
-                = {"../dex/framework/core.dex",
-                   "../dex/framework/framework.dex",
-                   "../dex/framework/framework2.dex",
-                   "../dex/framework/ext.dex",
-                   "../dex/framework/conscrypt.dex",
-                   "../dex/framework/okhttp.dex",
-                   "../dex/framework/core-junit.dex",
-                   "../dex/framework/android.test.runner.dex",
-                   "../dex/framework/android.policy.dex"};
+                = {"../../../dex/framework/core.dex",
+                   "../../../dex/framework/framework.dex",
+                   "../../../dex/framework/framework2.dex",
+                   "../../../dex/framework/ext.dex",
+                   "../../../dex/framework/conscrypt.dex",
+                   "../../../dex/framework/okhttp.dex",
+                   "../../../dex/framework/core-junit.dex",
+                   "../../../dex/framework/android.test.runner.dex",
+                   "../../../dex/framework/android.policy.dex"};
         jitana::class_loader loader(system_loader_hdl, "SystemLoader",
                                     begin(filenames), end(filenames));
         vm.add_loader(loader);
