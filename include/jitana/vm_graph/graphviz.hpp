@@ -42,7 +42,7 @@ namespace jitana {
             label_ss << "|" << g[v].loader.name();
             label_ss << "}|";
             for (const auto& dex_file : g[v].loader.dex_files()) {
-                label_ss << dex_file.filename() << "\\n";
+                label_ss << dex_file.filename() << "\\l";
             }
 
             os << "[";
