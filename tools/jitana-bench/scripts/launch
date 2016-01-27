@@ -1,0 +1,8 @@
+#!/bin/bash
+
+./jitana-bench | tee bench.csv
+
+echo ""
+echo "-------------------------------"
+column -s, -t bench.csv
+echo "-------------------------------"
