@@ -518,8 +518,6 @@ static void handle_motion_event(int x, int y)
 
 static void update_graphs()
 {
-    jitana::add_call_graph_edges(vm);
-
     for (auto& p : stats.dex_files()) {
         auto& dex = p.second;
         if (!dex.valid) {
@@ -547,6 +545,10 @@ static void update_graphs()
 
 static void write_graphviz()
 {
+    std::cout << "adding call graph edges... " << std::flush;
+    jitana::add_call_graph_edges(vm);
+    std::cout << "done." << std::endl;
+
     std::cout << "writing the graphs... " << std::flush;
 
     {
