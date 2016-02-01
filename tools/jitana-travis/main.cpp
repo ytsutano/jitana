@@ -161,6 +161,8 @@ static constexpr GLfloat light0_position[] = {500.0f, 200.0f, 500.0f, 1.0f};
 static constexpr GLfloat light0_ambient_color[] = {0.5f, 0.5f, 0.5f, 1.0f};
 static constexpr GLfloat light0_diffuse_color[] = {0.8f, 0.8f, 0.8f, 1.0f};
 
+constexpr int line_length = 128;
+
 static int width = 0.0;
 static int height = 0.0;
 static int window_x = 100;
@@ -176,9 +178,9 @@ static double view_angle_offset = 0.0;
 static double view_altitude_offset = 0.0;
 static double view_center_x = 128.0;
 static double view_center_x_offset = 0.0;
-static double view_center_y = -256.0;
+static double view_center_y = -line_length * 2.0;
 static double view_center_y_offset = 0.0;
-static double view_zoom = 0.17;
+static double view_zoom = 0.17 * line_length / 128.0;
 static double view_zoom_offset = 0.0;
 
 static int drag_start_x = 0;
@@ -199,9 +201,8 @@ static void update_graphs();
 void draw_instruction(int index, uint32_t /*address*/,
                       const insn_counter& counter)
 {
-    constexpr int l = 128;
-    float x = 14.0f * (index / l);
-    float y = 4.0f * (index % l);
+    float x = 14.0f * (index / line_length);
+    float y = 4.0f * (index % line_length);
     float z = 0.2;
 
     // Draw a Red 1x1 Square centered at origin
@@ -311,7 +312,7 @@ void display()
     for (const auto& dex : stats.dex_files()) {
         glPushMatrix();
         {
-            int l = 256;
+            int l = line_length;
             float x = 14.0f * (i / l);
             float y = 4.0f * (i % l);
             glColor3f(1.0f, 1.0f, 1.0f);
@@ -327,8 +328,8 @@ void display()
             draw_instruction(i++, inst.first, inst.second);
         }
 
-        i += 256 * 4;
-        i -= (i % 256);
+        i += line_length * 4;
+        i -= (i % line_length);
     }
 #else
     int i = 0;
@@ -338,9 +339,8 @@ void display()
             // Disable lighting.
             glDisable(GL_LIGHTING);
 
-            int l = 256;
-            float x = 14.0f * (i / l);
-            float y = 4.0f * (i % l);
+            float x = 14.0f * (i / line_length);
+            float y = 4.0f * (i % line_length);
             glColor3f(1.0f, 1.0f, 1.0f);
             glRasterPos3d(x, 3.0, y - 4.0);
             for (const auto& c : dex.first) {
@@ -435,8 +435,8 @@ void display()
             }
         }
 
-        i += 256 * 4;
-        i -= (i % 256);
+        i += line_length * 4;
+        i -= (i % line_length);
     }
 #endif
     // Update the screen by swapping the buffers.
