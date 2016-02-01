@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <boost/variant.hpp>
+#include <boost/type_erasure/any_cast.hpp>
 
 namespace jitana {
     namespace detail {
@@ -153,6 +154,13 @@ namespace jitana {
     bool is_basic_block_head(insn_vertex_descriptor v, const InsnGraph& g)
     {
         for (const auto& e : boost::make_iterator_range(in_edges(v, g))) {
+            // Ignore if it's not a control-flow edge.
+            namespace te = boost::type_erasure;
+            if (te::any_cast<const insn_control_flow_edge_property*>(&g[e])
+                == nullptr) {
+                continue;
+            }
+
             auto src_v = source(e, g);
             const auto& src_insn = g[src_v].insn;
             if (get<insn_if>(&src_insn) || get<insn_if_z>(&src_insn)
