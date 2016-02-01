@@ -51,7 +51,7 @@ struct dex_file {
     bool valid;
 };
 
-static bool periodic_output = true;
+static bool periodic_output = false;
 
 static jitana::virtual_machine vm;
 static jitana::class_loader_hdl system_loader_hdl = 0;
