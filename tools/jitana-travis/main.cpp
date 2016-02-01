@@ -307,31 +307,6 @@ void display()
                   -(view_center_y + view_center_y_offset), 0.0, 1.0, 0.0);
     }
 
-#if 0
-    int i = 0;
-    for (const auto& dex : stats.dex_files()) {
-        glPushMatrix();
-        {
-            int l = line_length;
-            float x = 14.0f * (i / l);
-            float y = 4.0f * (i % l);
-            glColor3f(1.0f, 1.0f, 1.0f);
-            glRasterPos3d(x, 3.0, y - 4.0);
-            for (const auto& c : dex.first) {
-                glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, c);
-            }
-        }
-        glPopMatrix();
-
-        // Draw the instructions.
-        for (const auto& inst : dex.second.counters) {
-            draw_instruction(i++, inst.first, inst.second);
-        }
-
-        i += line_length * 4;
-        i -= (i % line_length);
-    }
-#else
     int i = 0;
     for (const auto& dex : stats.dex_files()) {
         glPushMatrix();
@@ -385,16 +360,7 @@ void display()
                         continue;
                     }
 
-                    // std::cerr << "insns_off = " << insns_off << ", ";
-                    // std::cerr << "ig[iv].off = " << ig[iv].off << "\n";
-
                     auto addr = insns_off + ig[iv].off * 2;
-#if 0
-                    const auto it = counters.find(addr);
-                    if (it != counters.end()) {
-                        draw_instruction(i++, addr, it->second);
-                    }
-#else
                     draw_instruction(i++, addr, counters[addr]);
 
                     // Checking
@@ -414,10 +380,7 @@ void display()
                             std::cerr << "found_insn=" << p->second << "\n";
                         }
                     }
-#endif
                 }
-
-                // ++i;
             };
 
             for (const auto& mh : cg[cv].vtable) {
@@ -438,7 +401,7 @@ void display()
         i += line_length * 4;
         i -= (i % line_length);
     }
-#endif
+
     // Update the screen by swapping the buffers.
     glutSwapBuffers();
 }
@@ -768,9 +731,6 @@ static void reshape(int width, int height)
     double z = std::min(std::max(view_zoom + view_zoom_offset, 0.01), 10000.0);
     glOrtho(-1000.0 * aspectRatio * z, 1000.0 * aspectRatio * z, -1000.0 * z,
             1000.0 * z, -1400.0, 10000.0);
-
-    // Disable lighting.
-    // glDisable(GL_LIGHTING);
 
     // Set the viewport.
     glViewport(0, 0, width, height);
