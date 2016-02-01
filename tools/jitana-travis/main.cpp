@@ -167,7 +167,7 @@ static int window_x = 100;
 static int window_y = 100;
 static int window_width = 1024;
 static int window_height = 700;
-static std::string title = "Jitana-Travis";
+static std::string title = "Jitana-TraVis";
 static int window;
 
 static double view_angle = -M_PI / 3.0 + M_PI / 2.0;
