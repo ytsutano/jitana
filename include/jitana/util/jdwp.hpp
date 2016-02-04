@@ -17,6 +17,8 @@
 #ifndef JITANA_JDWP_HPP
 #define JITANA_JDWP_HPP
 
+#include <iostream>
+#include <iomanip>
 #include <cstdint>
 #include <memory>
 #include <boost/asio.hpp>
@@ -25,6 +27,25 @@ namespace jitana {
     using jdwp_command_set = uint8_t;
     using jdwp_command = uint8_t;
 
+    struct jdwp_reply_header {
+        uint32_t length;
+        uint32_t id;
+        uint8_t flags;
+        uint16_t error_code;
+
+        friend std::ostream& operator<<(std::ostream& os,
+                                        const jdwp_reply_header& x)
+        {
+            os << "(";
+            os << std::dec << x.length << ", ";
+            os << std::dec << x.id << ", ";
+            os << std::hex << "0x" << unsigned(x.flags) << ", ";
+            os << std::dec << x.error_code;
+            os << ")";
+            return os;
+        }
+    };
+
     class jdwp_connection {
     public:
         jdwp_connection();
@@ -32,7 +53,7 @@ namespace jitana {
         void connect(const std::string& host, const std::string& port);
         void close();
         int send_command(jdwp_command_set command_set, jdwp_command command);
-        void receive_reply_header();
+        void receive_reply_header(jdwp_reply_header& reply_header);
 
         template <typename Visitor>
         void receive_insn_counters(Visitor& visitor);
@@ -52,6 +73,7 @@ namespace jitana {
         uint16_t read_uint16();
         uint32_t read_uint32();
         std::string read_string(size_t size);
+        std::string read_string();
 
     private:
         boost::asio::io_service io_service_;
@@ -64,7 +86,9 @@ template <typename Visitor>
 void jitana::jdwp_connection::receive_insn_counters(Visitor& visitor)
 {
     send_command(225, 1);
-    receive_reply_header();
+
+    jdwp_reply_header reply_header;
+    receive_reply_header(reply_header);
 
     // Read the payload.
     for (;;) {

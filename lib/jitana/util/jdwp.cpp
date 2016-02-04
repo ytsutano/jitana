@@ -84,17 +84,17 @@ int jdwp_connection::send_command(jdwp_command_set command_set,
     return id_;
 }
 
-void jdwp_connection::receive_reply_header()
+void jdwp_connection::receive_reply_header(jdwp_reply_header& reply_header)
 {
     if (!connected()) {
         throw std::runtime_error("not connected");
     }
 
     // Read the header.
-    /*auto packet_length =*/read_uint32();
-    /*auto received_id =*/read_uint32();
-    /*auto flags =*/read_uint8();
-    /*auto error_code =*/read_uint16();
+    reply_header.length = read_uint32();
+    reply_header.id = read_uint32();
+    reply_header.flags = read_uint8();
+    reply_header.error_code = read_uint16();
 }
 
 void jdwp_connection::write(const void* data, size_t size)
@@ -156,4 +156,9 @@ std::string jdwp_connection::read_string(size_t size)
     std::string data(size, '\0');
     read(&data[0], size);
     return data;
+}
+
+std::string jdwp_connection::read_string()
+{
+    return read_string(read_uint32());
 }
