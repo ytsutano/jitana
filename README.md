@@ -1,7 +1,8 @@
 Jitana
 ======
 
-<strong>This tool is still in the early stage of development. It's known to be incomplet and incorrekt.</strong>
+<strong>This tool is still in the early stage of development. It's known to be
+incomplet and incorrekt.</strong>
 
 ## Overview
 
@@ -25,14 +26,18 @@ Jitana
         * Never use `new` or `delete`.
         * Never use pointers with implied ownership.
         * Don't abuse smart pointers.
-        * Avoid Java-style intrusive inheritance which implies pointer semantics. Prefer generic algorithm for static polymorphism, and  type erasure for dynamic polymorphism.
+        * Avoid Java-style intrusive inheritance which implies pointer
+          semantics. Prefer generic algorithm for static polymorphism, and type
+          erasure for dynamic polymorphism.
     * Write less.
         * Use the standard generic algorithms.
-* Any C++ code *must* be formatted using `clang-format` with provided `.clang-format` file before committing to the repository.
+* Any C++ code *must* be formatted using `clang-format` with provided
+  `.clang-format` file before committing to the repository.
 
 ## Building
 
-Jitana uses CMake which supports out-of-source build. In this document, the following directory structure is assumed:
+Jitana uses CMake which supports out-of-source build. In this document, the
+following directory structure is assumed:
 
     .
     ├── jitana (source code downloaded)
@@ -50,7 +55,8 @@ Install all the dependencies first. Then
 
 ### Ubuntu
 
-Jitana needs GCC 4.9 On Ubuntu 14.04, only GCC 4.8 is provided. In addition to all the dependencies needed, you might need to install g++-4.9 or clang.
+Jitana needs GCC 4.9 On Ubuntu 14.04, only GCC 4.8 is provided. In addition to
+all the dependencies needed, you might need to install g++-4.9 or clang.
 
     sudo apt-get install g++-4.9
 
@@ -63,7 +69,8 @@ Then
 
 ### Windows
 
-Jitana is not intended to run on Windows. Compilation may fail. However, you can try to run it by:
+Jitana is not intended to run on Windows. Compilation may fail. However, you
+can try to run it by:
 
 1. Install Visual Studio 2015.
 2. Install CMake. Make sure to add `cmake` to `PATH`
@@ -77,7 +84,7 @@ Jitana is not intended to run on Windows. Compilation may fail. However, you can
 
 5. Compile it with Visual Studio.
 
-With these steps, I was able to run `jitana-graph` and test cases on Windows 10.r
+With these steps, I was able to run `jitana-graph` and test cases on Windows 10.
 
 ## Design
 
@@ -138,11 +145,22 @@ With these steps, I was able to run `jitana-graph` and test cases on Windows 10.
 
 ### Handles
 
-A handle is used to identify a virtual machine object. There are two types of handles: DEX Handle and JVM Handle.
+A handle is used to identify a virtual machine object. There are two types of
+handles: DEX Handle and JVM Handle.
 
-* DEX handles are small (4 bytes or less) and closely related with the ID system used in the DEX file format. It is useful when communicating with the actual virtual machine (Dalvik or ART).
-* JVM handles are based on string identifiers defined in the Java Virtual Machine Specification.
-* We have one or more *initiating handles* and a unique *defining handle* for each object. Initiating handles are used to find a VM object by calling `virtual_machine::find_*()`. A defining handle is one of the initiating handles which defines the identity of the VM object. Thus a graph node representing a VM object holds its defining handle. These concepts are very similar to the *defining loaders* and the *initiating loaders* described in the [JVM Specification](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html).
+* DEX handles are small (4 bytes or less) and closely related with the ID
+  system used in the DEX file format. It is useful when communicating with the
+  actual virtual machine (Dalvik or ART).
+* JVM handles are based on string identifiers defined in the Java Virtual
+  Machine Specification.
+* We have one or more *initiating handles* and a unique *defining handle* for
+  each object. Initiating handles are used to find a VM object by calling
+  `virtual_machine::find_*()`. A defining handle is one of the initiating
+  handles which defines the identity of the VM object. Thus a graph node
+  representing a VM object holds its defining handle. These concepts are very
+  similar to the *defining loaders* and the *initiating loaders* described in
+  the [JVM
+  Specification](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html).
 
 See include/jitana/hdl.hpp for implementation details.
 
@@ -309,7 +327,11 @@ int main()
 
 ## External Links
 
-* [Bytecode for the Dalvik VM](http://source.android.com/devices/tech/dalvik/dalvik-bytecode.html)
-* [.dex &mdash; Dalvik Executable Format](http://source.android.com/devices/tech/dalvik/dex-format.html)
-* [Dalvik VM Instruction Formats](http://source.android.com/devices/tech/dalvik/instruction-formats.html)
-* [JVM Specification Chapter 5](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html)
+* [Bytecode for the Dalvik
+  VM](http://source.android.com/devices/tech/dalvik/dalvik-bytecode.html)
+* [Dalvik Executable
+  Format](http://source.android.com/devices/tech/dalvik/dex-format.html)
+* [Dalvik VM Instruction
+  Formats](http://source.android.com/devices/tech/dalvik/instruction-formats.html)
+* [JVM Specification Chapter
+  5](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-5.html)
