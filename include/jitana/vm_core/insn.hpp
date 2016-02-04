@@ -99,13 +99,34 @@ namespace jitana {
 
             friend bool operator==(const insn_base& x, const insn_base& y)
             {
-                return x.op == y.op && x.regs == y.regs
-                        && x.const_val == y.const_val;
+                return std::tie(x.op, x.regs, x.const_val)
+                        == std::tie(y.op, y.regs, y.const_val);
             }
 
             friend bool operator!=(const insn_base& x, const insn_base& y)
             {
                 return !(x == y);
+            }
+
+            friend bool operator<(const insn_base& x, const insn_base& y)
+            {
+                return std::tie(x.op, x.regs, x.const_val)
+                        < std::tie(y.op, y.regs, y.const_val);
+            }
+
+            friend bool operator>(const insn_base& x, const insn_base& y)
+            {
+                return y < x;
+            }
+
+            friend bool operator<=(const insn_base& x, const insn_base& y)
+            {
+                return !(y < x);
+            }
+
+            friend bool operator>=(const insn_base& x, const insn_base& y)
+            {
+                return !(x < y);
             }
 
             friend std::ostream& operator<<(std::ostream& os,
@@ -139,6 +160,26 @@ namespace jitana {
             return !(x == y);
         }
 
+        friend bool operator<(const no_const_val&, const no_const_val&)
+        {
+            return false;
+        }
+
+        friend bool operator>(const no_const_val& x, const no_const_val& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const no_const_val& x, const no_const_val& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const no_const_val& x, const no_const_val& y)
+        {
+            return !(x < y);
+        }
+
         friend std::ostream& operator<<(std::ostream& os, const no_const_val&)
         {
             return os;
@@ -150,14 +191,34 @@ namespace jitana {
         size_t size;
         std::vector<uint8_t> data;
 
-        friend bool operator==(const array_payload&, const array_payload&)
+        friend bool operator==(const array_payload& x, const array_payload& y)
         {
-            return true;
+            return x.data == y.data;
         }
 
         friend bool operator!=(const array_payload& x, const array_payload& y)
         {
             return !(x == y);
+        }
+
+        friend bool operator<(const array_payload& x, const array_payload& y)
+        {
+            return x.data < y.data;
+        }
+
+        friend bool operator>(const array_payload& x, const array_payload& y)
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const array_payload& x, const array_payload& y)
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const array_payload& x, const array_payload& y)
+        {
+            return !(x < y);
         }
 
         friend std::ostream& operator<<(std::ostream& os,
