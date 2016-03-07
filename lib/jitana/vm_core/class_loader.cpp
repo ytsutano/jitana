@@ -21,12 +21,13 @@
 using namespace jitana;
 using namespace jitana::detail;
 
-void class_loader::add_file(const std::string& filename)
+dex_file_hdl class_loader::add_file(const std::string& filename)
 {
     dex_file_hdl file_hdl;
     file_hdl.loader_hdl = hdl_;
     file_hdl.idx = uint8_t(impl_->dex_files.size());
     impl_->dex_files.emplace_back(file_hdl, filename);
+    return file_hdl;
 }
 
 boost::optional<class_vertex_descriptor>

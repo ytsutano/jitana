@@ -49,7 +49,7 @@ namespace jitana {
         {
         }
 
-        void add_file(const std::string& filename);
+        dex_file_hdl add_file(const std::string& filename);
 
         const class_loader_hdl& hdl() const
         {
