@@ -40,7 +40,15 @@ dex_file::dex_file(dex_file_hdl hdl, std::string filename)
         : hdl_(std::move(hdl)), file_(std::make_shared<mapped_file>())
 {
     file_->name = std::move(filename);
+
+    // Open the DEX file.
     file_->file.open(file_->name);
+    if (!file_->file.is_open()) {
+        std::stringstream ss;
+        ss << "failed to open ";
+        ss << file_->name;
+        throw std::runtime_error(ss.str());
+    }
 
     // Get the file length.
     file_->length = file_->file.end() - file_->file.begin();
