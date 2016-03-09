@@ -1,0 +1,138 @@
+From 3498c201e2a806ddf6e60278fd06d801b36a4e2b Mon Sep 17 00:00:00 2001
+From: Yutaka Tsutano <yutaka@tsutano.com>
+Date: Fri, 4 Mar 2016 18:00:30 -0600
+Subject: [PATCH 2/2] Set aside APK/JAR/DEX files for Jitana
+
+I was originally planning to modify dexopt to copy the DEX files loaded
+by the virtual machine to safe locations. The advantage of this
+approach is that it has zero overhead for the second time of execution
+because dexopt is executed only when an optimized DEX file for a DEX
+file to be loaded on the virtual machine. However, there are two
+disadvantages to this approach:
+
+- The optimized DEX files must be deleted when we first run the
+  modified Dalvik to make copies for these DEX files. The optimized DEX
+  files may be placed in directories other than /data/dalvik-cache. For
+  example, the secondary DEX files for Facebook are placed in
+  /data/data/com.facebook.katana/app_secondary_program_dex/.
+
+- It cannot keep additional files such as AndroidManifest.xml with the
+  DEX files.
+
+It seems Dalvik_dalvik_system_DexFile_openDexFileNative() is executed
+whenever a DEX file is loaded after Zygote. Unless an uncompressed DEX
+file is explicitly loaded (which can happen in the command line mode),
+a DEX file is loaded from a APK file or a JAR file. So I decided to
+keep a copy of the enclosing APK/JAR file within this function. A DEX
+file is copied only if it is loaded explicitly without a APK/JAR file.
+
+A APK/JAR/DEX file is copied to /data/jitana only if a copy with the
+same name and timestamp does not exist. The target file is named just
+like the optimized DEX files are named. For example, /data/app/abc.apk
+is copied to /data/jitana/data@app@abc.apk.
+
+Note that the target directory should be created beforehand via adb
+shell like this:
+
+    adb shell 'mkdir /data/jitana; chmod 777 /data/jitana'
+
+There are ways to make this permission more restrictive, but that
+require more modifications to the virtual machine.
+
+On the Jitana side, we use apktool for extracting APK/JAR files.
+
+Change-Id: If6f3c353bcf2dc3c979546236642d4777b1337b1
+---
+ vm/native/dalvik_system_DexFile.cpp | 63 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 63 insertions(+)
+
+diff --git a/vm/native/dalvik_system_DexFile.cpp b/vm/native/dalvik_system_DexFile.cpp
+index af1deb6..6217b24 100644
+--- a/vm/native/dalvik_system_DexFile.cpp
++++ b/vm/native/dalvik_system_DexFile.cpp
+@@ -17,6 +17,14 @@
+ /*
+  * dalvik.system.DexFile
+  */
++#include <fcntl.h>
++#include <unistd.h>
++#include <utime.h>
++#include <sys/stat.h>
++#include <sys/sendfile.h>
++#include <string>
++#include <algorithm>
++
+ #include "Dalvik.h"
+ #include "native/InternalNativePriv.h"
+
+@@ -130,6 +138,58 @@ static void addToDexFileTable(DexOrJar* pDexOrJar) {
+ }
+
+ /*
++ * Creates a backup of a file for Jitana.
++ */
++static void backupFileForJitana(const char* srcName)
++{
++    // Generate the destination file name.
++    std::string dstName = "/data/jitana/";
++    size_t pathLen = dstName.size();
++    dstName += &srcName[1];
++    std::replace(dstName.begin() + pathLen, dstName.end(), '/', '@');
++
++    int srcFile = open(srcName, O_RDONLY);
++    if (srcFile == -1) {
++        ALOGI("***VMAP*** Unable to open source file '%s'", srcName);
++        return;
++    }
++
++    struct stat srcFileStat;
++    fstat(srcFile, &srcFileStat);
++
++    struct stat dstFileStat;
++    int dstFileStatResult = stat(dstName.c_str(), &dstFileStat);
++
++    if (dstFileStatResult != 0
++            || dstFileStat.st_mtime != srcFileStat.st_mtime) {
++        ALOGI("***VMAP*** Copying '%s'...", dstName.c_str());
++
++        int dstFile = open(dstName.c_str(), O_WRONLY | O_CREAT, 0644);
++        if (dstFile == -1) {
++            ALOGE("***VMAP*** Unable to create destination file '%s'",
++                    dstName.c_str());
++            close(srcFile);
++        }
++
++        sendfile(dstFile, srcFile, NULL, srcFileStat.st_size);
++
++        close(dstFile);
++
++        ALOGI("***VMAP*** Copied '%s'", dstName.c_str());
++
++        // Synchronize the timestamp.
++        struct utimbuf tbuf;
++        tbuf.actime = srcFileStat.st_atime;
++        tbuf.modtime = srcFileStat.st_mtime;
++        utime(dstName.c_str(), &tbuf);
++    } else {
++        ALOGI("***VMAP*** Backup already exists '%s'", dstName.c_str());
++    }
++
++    close(srcFile);
++}
++
++/*
+  * private static int openDexFileNative(String sourceName, String outputName,
+  *     int flags) throws IOException
+  *
+@@ -228,6 +288,9 @@ static void Dalvik_dalvik_system_DexFile_openDexFileNative(const u4* args,
+     if (pDexOrJar != NULL) {
+         pDexOrJar->fileName = sourceName;
+         addToDexFileTable(pDexOrJar);
++
++        // For Jitana: create a copy of the file.
++        backupFileForJitana(sourceName);
+     } else {
+         free(sourceName);
+     }
+--
+2.7.2

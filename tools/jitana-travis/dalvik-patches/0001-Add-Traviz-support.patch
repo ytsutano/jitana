@@ -1,10 +1,30 @@
+From eb011eb6b807bc2b93723ab76c7a45fb7ea9b47f Mon Sep 17 00:00:00 2001
+From: Yutaka Tsutano <yutaka@tsutano.com>
+Date: Tue, 6 Jan 2015 13:06:13 -0600
+Subject: [PATCH 1/2] Add Traviz support
+
+Change-Id: Iaf6704bc751ccdd16d7fb50b4c3bfb62a53e0cb2
+---
+ vm/Dvm.mk                             |  5 ++
+ vm/DvmDex.cpp                         | 22 +++++++++
+ vm/DvmDex.h                           | 12 +++++
+ vm/Globals.h                          |  7 +++
+ vm/jdwp/JdwpHandler.cpp               | 91 +++++++++++++++++++++++++++++++++++
+ vm/mterp/armv5te/footer.S             | 13 +++++
+ vm/mterp/common/asm-constants.h       |  6 +++
+ vm/mterp/out/InterpAsm-armv5te-vfp.S  | 13 +++++
+ vm/mterp/out/InterpAsm-armv5te.S      | 13 +++++
+ vm/mterp/out/InterpAsm-armv7-a-neon.S | 13 +++++
+ vm/mterp/out/InterpAsm-armv7-a.S      | 13 +++++
+ 11 files changed, 208 insertions(+)
+
 diff --git a/vm/Dvm.mk b/vm/Dvm.mk
 index fe700de..3dcb7fa 100644
 --- a/vm/Dvm.mk
 +++ b/vm/Dvm.mk
 @@ -259,6 +259,11 @@ ifeq ($(dvm_arch),arm)
-		compiler/codegen/arm/ArmRallocUtil.cpp \
-		compiler/template/out/CompilerTemplateAsm-$(dvm_arch_variant).S
+ 		compiler/codegen/arm/ArmRallocUtil.cpp \
+ 		compiler/template/out/CompilerTemplateAsm-$(dvm_arch_variant).S
    endif
 +
 +  # For now, enable VMAP if JIT is enabled.
@@ -355,3 +375,5 @@ index 65c4a70..1505f9e 100644
      eor     r3,rPC,rPC,lsr #12 @ cheap, but fast hash function
      lsl     r3,r3,#(32 - JIT_PROF_SIZE_LOG_2)          @ shift out excess bits
      ldrb    r1,[r0,r3,lsr #(32 - JIT_PROF_SIZE_LOG_2)] @ get counter
+--
+2.7.2

@@ -15,11 +15,13 @@
  */
 
 #include <iostream>
-#include <unordered_map>
+#include <vector>
 #include <thread>
 #include <fstream>
+#include <algorithm>
 
 #include <boost/asio.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include <jitana/jitana.hpp>
 #include <jitana/util/jdwp.hpp>
@@ -46,115 +48,20 @@ struct insn_counter {
 };
 
 struct dex_file {
+    std::string apk_filename;
+    std::string odex_filename;
     std::unordered_map<uint32_t, insn_counter> counters;
-    jitana::dex_file_hdl hdl;
-    bool valid;
+    boost::optional<jitana::dex_file_hdl> hdl;
 };
 
+std::vector<dex_file> dex_files;
+
 static bool periodic_output = false;
+static bool should_terminate = false;
 
 static jitana::virtual_machine vm;
 static jitana::class_loader_hdl system_loader_hdl = 0;
 static jitana::class_loader_hdl app_loader_hdl = 1;
-
-/// Instruction stats. Can be passed as a visitor to
-/// jitana::jdwp_connection::receive_insn_counters.
-struct insn_stats {
-public:
-    void enter_dex_file(const std::string& source_filename,
-                        const std::string& filename)
-    {
-        auto it = dex_files_.find(filename);
-        if (it != end(dex_files_)) {
-            current_dex_file_ = &it->second;
-        }
-        else {
-            // Get the basename of the ODEX file.
-            std::string basename
-                    = {std::find_if(filename.rbegin(), filename.rend(),
-                                    [](char c) { return c == '/'; })
-                               .base(),
-                       end(filename)};
-            std::cout << basename << "\n";
-
-            auto lv = find_loader_vertex(app_loader_hdl, vm.loaders());
-            if (!lv) {
-                throw std::runtime_error("application loader not found");
-            }
-            auto& loader = vm.loaders()[*lv].loader;
-
-            // Pull the ODEX file from the device.
-            const std::string local_filename = "odex/" + basename;
-            pid_t pid = ::fork();
-            if (pid == 0) {
-                // Run the shell script.
-                std::cout << "Pulling " << filename << "!!!!!!!!!!!!!!\n";
-                ::execl("pull-odex", "pull-odex", filename.c_str(),
-                        local_filename.c_str(), nullptr);
-            }
-            else if (pid > 0) {
-                std::cout << "Executing: pid = " << pid << "\n";
-                int status = 0;
-                ::waitpid(pid, &status, 0);
-                std::cout << "Done: status = " << status << "\n";
-            }
-            else {
-                throw std::runtime_error("failed to pull ODEX");
-            }
-
-            std::cout << local_filename << "\n";
-            std::cout << filename << "\n";
-
-            current_dex_file_ = &dex_files_[filename];
-            try {
-                loader.add_file(local_filename);
-                current_dex_file_->valid = true;
-                current_dex_file_->hdl.loader_hdl = app_loader_hdl;
-                current_dex_file_->hdl.idx = loader.dex_files().size() - 1;
-            }
-            catch (...) {
-                current_dex_file_->valid = false;
-            }
-        }
-
-        std::cout << "source_filename = " << source_filename << "\n";
-        std::cout << "filename = " << filename << "\n";
-        for (auto& c : current_dex_file_->counters) {
-            c.second.delta = 0;
-            ++c.second.last_accessed;
-        }
-    }
-
-    void insn(uint32_t offset, uint16_t counter)
-    {
-        if (current_dex_file_->valid) {
-            auto& c = current_dex_file_->counters[offset];
-            c.counter += counter;
-            c.delta = counter;
-            c.last_accessed = 0;
-        }
-    }
-
-    void exit_dex_file()
-    {
-    }
-
-    const std::unordered_map<std::string, dex_file>& dex_files() const
-    {
-        return dex_files_;
-    }
-
-    std::unordered_map<std::string, dex_file>& dex_files()
-    {
-        return dex_files_;
-    }
-
-private:
-    std::unordered_map<std::string, dex_file> dex_files_;
-    dex_file* current_dex_file_;
-};
-
-static insn_stats stats;
 
 // Lighting parameters.
 static constexpr GLfloat light0_position[] = {500.0f, 200.0f, 500.0f, 1.0f};
@@ -308,7 +215,7 @@ void display()
     }
 
     int i = 0;
-    for (const auto& dex : stats.dex_files()) {
+    for (auto& dex : dex_files) {
         glPushMatrix();
         {
             // Disable lighting.
@@ -318,7 +225,7 @@ void display()
             float y = 4.0f * (i % line_length);
             glColor3f(1.0f, 1.0f, 1.0f);
             glRasterPos3d(x, 3.0, y - 4.0);
-            for (const auto& c : dex.first) {
+            for (const auto& c : dex.apk_filename) {
                 glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, c);
             }
 
@@ -327,18 +234,12 @@ void display()
         }
         glPopMatrix();
 
-        auto it = stats.dex_files().find(dex.first);
-        if (it == end(stats.dex_files())) {
-            std::cerr << "No DEX file named " << dex.first << " is found\n";
-        }
-        auto& counters = it->second.counters;
-
         // Draw the instructions.
         const auto& cg = vm.classes();
         const auto& mg = vm.methods();
         for (const auto& cv : boost::make_iterator_range(vertices(cg))) {
-            // Ignore a class implemented in a different DEX file for now.
-            if (cg[cv].hdl.file_hdl != dex.second.hdl) {
+            // Ignore a class implemented in a different DEX file.
+            if (cg[cv].hdl.file_hdl != *dex.hdl) {
                 continue;
             }
 
@@ -361,10 +262,10 @@ void display()
                     }
 
                     auto addr = insns_off + ig[iv].off * 2;
-                    draw_instruction(i++, addr, counters[addr]);
+                    draw_instruction(i++, addr, dex.counters[addr]);
 
                     // Checking
-                    auto p = vm.find_insn(dex.second.hdl, addr, false);
+                    auto p = vm.find_insn(*dex.hdl, addr, false);
                     if (!p) {
                         std::cerr << "method=" << mg[mv].hdl << " ";
                         std::cerr << "insns_off=" << insns_off << " ";
@@ -481,9 +382,8 @@ static void handle_motion_event(int x, int y)
 
 static void update_graphs()
 {
-    for (auto& p : stats.dex_files()) {
-        auto& dex = p.second;
-        if (!dex.valid) {
+    for (auto& dex : dex_files) {
+        if (!dex.hdl) {
             continue;
         }
 
@@ -492,7 +392,7 @@ static void update_graphs()
             auto& ictr = c.second;
             auto& vertices = ictr.vertices;
             if (!vertices) {
-                vertices = vm.find_insn(dex.hdl, offset, true);
+                vertices = vm.find_insn(*dex.hdl, offset, true);
             }
             if (vertices) {
                 vm.methods()[vertices->first].insns[vertices->second].counter
@@ -500,7 +400,7 @@ static void update_graphs()
             }
             else {
                 std::cerr << "failed to find the vertex: ";
-                std::cerr << dex.hdl << " " << offset << "\n";
+                std::cerr << *dex.hdl << " " << offset << "\n";
             }
         }
     }
@@ -740,9 +640,90 @@ void update(int /*value*/)
 {
     jitana::jdwp_connection conn;
     try {
+        struct insn_counter_updator {
+            std::vector<dex_file>::iterator it;
+
+            void enter_dex_file(const std::string& apk_filename,
+                                const std::string& odex_filename)
+            {
+                it = std::find_if(begin(dex_files), end(dex_files),
+                                  [&](const auto& x) {
+                                      return x.apk_filename == apk_filename;
+                                  });
+                if (it == end(dex_files)) {
+                    dex_files.emplace_back();
+                    it = end(dex_files);
+                    --it;
+
+                    it->apk_filename = apk_filename;
+                    it->odex_filename = odex_filename;
+                }
+
+                for (auto& c : it->counters) {
+                    c.second.delta = 0;
+                    ++c.second.last_accessed;
+                }
+            }
+
+            void insn(uint32_t offset, uint16_t counter)
+            {
+                auto& c = it->counters[offset];
+                c.counter += counter;
+                c.delta = counter;
+                c.last_accessed = 0;
+            }
+
+            void exit_dex_file()
+            {
+            }
+        } updator;
+
+        size_t n_old = dex_files.size();
         conn.connect("localhost", "6100");
-        conn.receive_insn_counters(stats);
+        conn.receive_insn_counters(updator);
         conn.close();
+
+        if (n_old != dex_files.size()) {
+            // Pull the APK files on the device.
+            pid_t pid = ::fork();
+            if (pid == 0) {
+                // Run the shell script.
+                ::execl("pull-apks", "pull-apks", nullptr);
+            }
+            else if (pid > 0) {
+                int status = 0;
+                ::waitpid(pid, &status, 0);
+            }
+            else {
+                throw std::runtime_error("failed to pull APKs");
+            }
+
+            for (auto& dex : dex_files) {
+                if (dex.hdl) {
+                    continue;
+                }
+
+                auto lv = find_loader_vertex(app_loader_hdl, vm.loaders());
+                if (!lv) {
+                    throw std::runtime_error("application loader not found");
+                }
+                auto& loader = vm.loaders()[*lv].loader;
+
+                std::string apk_name = dex.apk_filename;
+                std::replace(begin(apk_name) + 1, end(apk_name), '/', '@');
+                std::string local_filename = "apks-extracted" + apk_name;
+                if (!boost::ends_with(apk_name, ".dex")) {
+                    local_filename += "/classes.dex";
+                }
+
+                dex.hdl = loader.add_file(local_filename);
+
+                std::cout << "New DEX file (" << *dex.hdl << ") is added:\n";
+                std::cout << "    Original: " << dex.apk_filename << "\n";
+                std::cout << "    ODEX:     " << dex.odex_filename << "\n";
+                std::cout << "    Local:    " << local_filename << "\n";
+            }
+        }
     }
     catch (std::runtime_error e) {
         std::cerr << "error: " << e.what() << "\n";
@@ -761,8 +742,23 @@ void update(int /*value*/)
         }
     }
 
+    if (should_terminate) {
+        write_graphviz();
+        write_traces();
+        write_vtables();
+        write_dtables();
+        std::cout << std::endl;
+        exit(0);
+    }
+
     glutPostRedisplay();
     glutTimerFunc(50, update, 0);
+}
+
+void on_sigint(int)
+{
+    std::cout << "\nInterrupted. Terminating the program..." << std::endl;
+    should_terminate = true;
 }
 
 int main(int argc, char** argv)
@@ -808,6 +804,13 @@ int main(int argc, char** argv)
 
     update(0);
 
+    signal(SIGINT, on_sigint);
+
     // Execute the main loop.
     glutMainLoop();
+
+    write_graphviz();
+    write_traces();
+    write_vtables();
+    write_dtables();
 }

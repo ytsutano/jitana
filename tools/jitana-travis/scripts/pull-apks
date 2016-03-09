@@ -1,0 +1,44 @@
+#!/bin/bash
+
+pull_and_extract() {
+    echo "Processing $1..."
+
+    # Pull.
+    adb pull "/data/jitana/$1" apks
+
+    # Extract.
+    if [[ "${i##*.}" == 'dex' ]]; then
+        # DEX file: just copy.
+        cp "apks/$1" "apks-extracted/$1"
+    else
+        # APK/JAR file: extract using apktool.
+        apktool decode --force --no-src -o "apks-extracted/$1" "apks/$1"
+        dexdump -d "apks-extracted/$1/classes.dex" > "apks-extracted/$1/classes.txt"
+    fi
+}
+
+mkdir -p apks apks-extracted
+touch apk_list.txt
+
+echo "Pulling new APK/JAR/DEX files..."
+
+adb root
+
+# Get a list of files from the device.
+if ! adb shell 'cd /data/jitana; ls -l' > apk_list_new.txt; then
+    exit 1
+fi
+
+# Remove CR character (equivalent to dos2unix).
+perl -i -p -e 's/\r//' apk_list_new.txt
+
+# Download anything that has added/changed, then extract.
+sort apk_list_new.txt apk_list.txt apk_list.txt | uniq -u | awk '{ print $7 }' \
+| while read i; do
+    pull_and_extract $i
+done
+
+mv apk_list_new.txt apk_list.txt
+rm -rf apk_list_diff.txt
+
+echo "Done"

@@ -46,6 +46,12 @@ namespace jitana {
         }
     };
 
+    struct jdwp_insn_counters {
+        std::string source_filename;
+        std::string filename;
+        std::vector<std::pair<uint32_t, uint16_t>> counters;
+    };
+
     class jdwp_connection {
     public:
         jdwp_connection();

@@ -63,40 +63,6 @@ void jdwp_connection::close()
     }
 }
 
-int jdwp_connection::send_command(jdwp_command_set command_set,
-                                  jdwp_command command)
-{
-    if (!connected()) {
-        throw std::runtime_error("not connected");
-    }
-
-    uint32_t packet_length = 11;
-    uint8_t flags = 0;
-
-    write(packet_length);
-    write(id_);
-    write(flags);
-    write(command_set);
-    write(command);
-
-    ++id_;
-
-    return id_;
-}
-
-void jdwp_connection::receive_reply_header(jdwp_reply_header& reply_header)
-{
-    if (!connected()) {
-        throw std::runtime_error("not connected");
-    }
-
-    // Read the header.
-    reply_header.length = read_uint32();
-    reply_header.id = read_uint32();
-    reply_header.flags = read_uint8();
-    reply_header.error_code = read_uint16();
-}
-
 void jdwp_connection::write(const void* data, size_t size)
 {
     size_t len = boost::asio::write(socket_, boost::asio::buffer(data, size));
@@ -161,4 +127,38 @@ std::string jdwp_connection::read_string(size_t size)
 std::string jdwp_connection::read_string()
 {
     return read_string(read_uint32());
+}
+
+int jdwp_connection::send_command(jdwp_command_set command_set,
+                                  jdwp_command command)
+{
+    if (!connected()) {
+        throw std::runtime_error("not connected");
+    }
+
+    uint32_t packet_length = 11;
+    uint8_t flags = 0;
+
+    write(packet_length);
+    write(id_);
+    write(flags);
+    write(command_set);
+    write(command);
+
+    ++id_;
+
+    return id_;
+}
+
+void jdwp_connection::receive_reply_header(jdwp_reply_header& reply_header)
+{
+    if (!connected()) {
+        throw std::runtime_error("not connected");
+    }
+
+    // Read the header.
+    reply_header.length = read_uint32();
+    reply_header.id = read_uint32();
+    reply_header.flags = read_uint8();
+    reply_header.error_code = read_uint16();
 }
