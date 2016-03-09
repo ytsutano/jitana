@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-project(Jitana LANGUAGES CXX)
+project(Jitana C CXX)
 set(Jitana_VERSION_MAJOR 1)
 set(Jitana_VERSION_MINOR 0)
 
