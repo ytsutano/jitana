@@ -190,7 +190,8 @@ namespace jitana {
     struct pag_vertex_property {
         boost::variant<pag_reg, pag_alloc, pag_reg_dot_field,
                        pag_alloc_dot_field, pag_static_field, pag_reg_dot_array,
-                       pag_alloc_dot_array> vertex;
+                       pag_alloc_dot_array>
+                vertex;
         dex_insn_hdl context;
 
         boost::optional<dex_type_hdl> type;
