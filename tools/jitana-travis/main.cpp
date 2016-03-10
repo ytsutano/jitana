@@ -44,7 +44,8 @@ struct insn_counter {
     long long delta = 0;
     long long last_accessed = 0;
     boost::optional<std::pair<jitana::method_vertex_descriptor,
-                              jitana::insn_vertex_descriptor>> vertices;
+                              jitana::insn_vertex_descriptor>>
+            vertices;
 };
 
 struct dex_file {
@@ -636,99 +637,118 @@ static void reshape(int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void update(int /*value*/)
+void pull_apk_files()
 {
-    jitana::jdwp_connection conn;
-    try {
-        struct insn_counter_updator {
-            std::vector<dex_file>::iterator it;
+    pid_t pid = ::fork();
+    if (pid == 0) {
+        // Run the shell script.
+        ::execl("pull-apks", "pull-apks", nullptr);
+    }
+    else if (pid > 0) {
+        int status = 0;
+        ::waitpid(pid, &status, 0);
+    }
+    else {
+        throw std::runtime_error("failed to pull APK files");
+    }
+}
 
-            void enter_dex_file(const std::string& apk_filename,
-                                const std::string& odex_filename)
-            {
-                it = std::find_if(begin(dex_files), end(dex_files),
-                                  [&](const auto& x) {
-                                      return x.apk_filename == apk_filename;
-                                  });
-                if (it == end(dex_files)) {
-                    dex_files.emplace_back();
-                    it = end(dex_files);
-                    --it;
+std::string make_local_filename(const std::string& apk_filename)
+{
+    if (apk_filename.size() < 2 || apk_filename[0] != '/') {
+        throw std::invalid_argument("invalid APK file name");
+    }
 
-                    it->apk_filename = apk_filename;
-                    it->odex_filename = odex_filename;
-                }
+    std::string filename = "apks-extracted/";
+    std::replace_copy(begin(apk_filename) + 1, end(apk_filename),
+                      std::back_inserter(filename), '/', '@');
+    if (!boost::ends_with(apk_filename, ".dex")) {
+        filename += "/classes.dex";
+    }
+    return filename;
+}
 
-                for (auto& c : it->counters) {
-                    c.second.delta = 0;
-                    ++c.second.last_accessed;
-                }
+void update_insn_counters()
+{
+    struct insn_counter_updater {
+        std::vector<dex_file>::iterator it;
+
+        void enter_dex_file(const std::string& apk_filename,
+                            const std::string& odex_filename)
+        {
+            it = std::find_if(begin(dex_files), end(dex_files),
+                              [&](const auto& x) {
+                                  return x.apk_filename == apk_filename;
+                              });
+            if (it == end(dex_files)) {
+                dex_files.emplace_back();
+                it = end(dex_files);
+                --it;
+
+                it->apk_filename = apk_filename;
+                it->odex_filename = odex_filename;
             }
 
-            void insn(uint32_t offset, uint16_t counter)
-            {
-                auto& c = it->counters[offset];
-                c.counter += counter;
-                c.delta = counter;
-                c.last_accessed = 0;
-            }
-
-            void exit_dex_file()
-            {
-            }
-        } updator;
-
-        size_t n_old = dex_files.size();
-        conn.connect("localhost", "6100");
-        conn.receive_insn_counters(updator);
-        conn.close();
-
-        if (n_old != dex_files.size()) {
-            // Pull the APK files on the device.
-            pid_t pid = ::fork();
-            if (pid == 0) {
-                // Run the shell script.
-                ::execl("pull-apks", "pull-apks", nullptr);
-            }
-            else if (pid > 0) {
-                int status = 0;
-                ::waitpid(pid, &status, 0);
-            }
-            else {
-                throw std::runtime_error("failed to pull APKs");
-            }
-
-            for (auto& dex : dex_files) {
-                if (dex.hdl) {
-                    continue;
-                }
-
-                auto lv = find_loader_vertex(app_loader_hdl, vm.loaders());
-                if (!lv) {
-                    throw std::runtime_error("application loader not found");
-                }
-                auto& loader = vm.loaders()[*lv].loader;
-
-                std::string apk_name = dex.apk_filename;
-                std::replace(begin(apk_name) + 1, end(apk_name), '/', '@');
-                std::string local_filename = "apks-extracted" + apk_name;
-                if (!boost::ends_with(apk_name, ".dex")) {
-                    local_filename += "/classes.dex";
-                }
-
-                dex.hdl = loader.add_file(local_filename);
-
-                std::cout << "New DEX file (" << *dex.hdl << ") is added:\n";
-                std::cout << "    Original: " << dex.apk_filename << "\n";
-                std::cout << "    ODEX:     " << dex.odex_filename << "\n";
-                std::cout << "    Local:    " << local_filename << "\n";
+            for (auto& c : it->counters) {
+                c.second.delta = 0;
+                ++c.second.last_accessed;
             }
         }
+
+        void insn(uint32_t offset, uint16_t counter)
+        {
+            auto& c = it->counters[offset];
+            c.counter += counter;
+            c.delta = counter;
+            c.last_accessed = 0;
+        }
+
+        void exit_dex_file()
+        {
+        }
+    } updater;
+
+    size_t dex_files_size_old = dex_files.size();
+
+    jitana::jdwp_connection conn;
+    conn.connect("localhost", "6100");
+    conn.receive_insn_counters(updater);
+    conn.close();
+
+    if (dex_files_size_old != dex_files.size()) {
+        // Pull the APK files on the device.
+        pull_apk_files();
+
+        for (auto& dex : dex_files) {
+            if (dex.hdl) {
+                continue;
+            }
+
+            std::string local_filename = make_local_filename(dex.apk_filename);
+
+            auto lv = find_loader_vertex(app_loader_hdl, vm.loaders());
+            if (!lv) {
+                throw std::runtime_error("application loader not found");
+            }
+
+            dex.hdl = vm.loaders()[*lv].loader.add_file(local_filename);
+
+            std::cout << "New DEX file (" << *dex.hdl << ") is added:\n";
+            std::cout << "    Original: " << dex.apk_filename << "\n";
+            std::cout << "    ODEX:     " << dex.odex_filename << "\n";
+            std::cout << "    Local:    " << local_filename << "\n";
+        }
+    }
+}
+
+void update(int /*value*/)
+{
+    try {
+        update_insn_counters();
     }
     catch (std::runtime_error e) {
         std::cerr << "error: " << e.what() << "\n";
     }
-    std::cout << std::flush;
 
     update_graphs();
     if (periodic_output) {
