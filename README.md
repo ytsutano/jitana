@@ -78,6 +78,26 @@ With these steps, I was able to run `jitana-graph` and test cases on Windows 10.
 
 ## Design
 
+Jitana is implemented using the [generic
+programming](https://en.wikipedia.org/wiki/Generic_programming) techniques
+rather than the traditional object-oriented techniques due to the following
+ideas:
+
+* Specialization of data structures to a specific system. Jitana defines data
+  structures that closely map to (a) the data structures used in the actual
+  system implementations including the virtual machine and the operating
+  system, (b) the environment of execution such as network or file system
+  information flow, or even (c) the things outside of computers such as social
+  connections of users. This makes interleaving and extension, not just the
+  combination as previously done, of static and dynamic analysis possible.
+* Generalization of algorithms. By defining the data types such that they all
+  model the appropriate concepts defined in the Boost Graph Library (BGL), we
+  can still use the same implementation of algorithms on different data types
+  using the generic programming techniques. A new algorithm can be implemented
+  by composing existing algorithms such as the ones provided by the Standard
+  Template Library (STL), the Adobe Source Library (ASL), and the Boost C++
+  Libraries. It may also be reused in different contexts outside of Jitana.
+
 ### VM Structure
 
 [The VM Design](dot_design.svg).
@@ -269,6 +289,10 @@ struct dex_reg_hdl {
 
 ### Simple Example
 
+For convenience, you should create your own tool under `tools/` so that the
+build system can read your `CMakeLists.txt` automatically. You may use
+`tools/jitana-graph/` as an example.
+
 ~~~~{.cpp}
 #include <jitana/jitana.hpp>
 
@@ -313,7 +337,7 @@ int main()
 
 ## License
 
-* See the LICENSE.md file for license rights and limitations (ISC).
+* See [LICENSE.md](LICENSE.md) for license rights and limitations (ISC).
 
 ## External Links
 
