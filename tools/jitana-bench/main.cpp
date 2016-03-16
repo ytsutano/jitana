@@ -200,5 +200,14 @@ void run_benchmark()
 
 int main()
 {
-    run_benchmark();
+    try {
+        run_benchmark();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n\n";
+        std::cerr << "Please make sure that ";
+        std::cerr << "all dependencies are installed correctly, and ";
+        std::cerr << "the DEX files exist.\n";
+        return 1;
+    }
 }

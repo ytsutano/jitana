@@ -42,8 +42,13 @@ dex_file::dex_file(dex_file_hdl hdl, std::string filename)
     file_->name = std::move(filename);
 
     // Open the DEX file.
-    file_->file.open(file_->name);
-    if (!file_->file.is_open()) {
+    try {
+        file_->file.open(file_->name);
+        if (!file_->file.is_open()) {
+            throw std::runtime_error("file is not opened");
+        }
+    }
+    catch (const std::exception& e) {
         std::stringstream ss;
         ss << "failed to open ";
         ss << file_->name;

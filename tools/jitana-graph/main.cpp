@@ -215,5 +215,14 @@ void write_graphs(const jitana::virtual_machine& vm)
 
 int main()
 {
-    test_virtual_machine();
+    try {
+        test_virtual_machine();
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n\n";
+        std::cerr << "Please make sure that ";
+        std::cerr << "all dependencies are installed correctly, and ";
+        std::cerr << "the DEX files exist.\n";
+        return 1;
+    }
 }

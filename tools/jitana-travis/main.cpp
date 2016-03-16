@@ -799,38 +799,47 @@ int main(int argc, char** argv)
     // Initialize OpenGL.
     init_opengl();
 
-    {
-        std::vector<std::string> filenames
-                = {"../../../dex/framework/core.dex",
-                   "../../../dex/framework/framework.dex",
-                   "../../../dex/framework/framework2.dex",
-                   "../../../dex/framework/ext.dex",
-                   "../../../dex/framework/conscrypt.dex",
-                   "../../../dex/framework/okhttp.dex",
-                   "../../../dex/framework/core-junit.dex",
-                   "../../../dex/framework/android.test.runner.dex",
-                   "../../../dex/framework/android.policy.dex"};
-        jitana::class_loader loader(system_loader_hdl, "SystemLoader",
-                                    begin(filenames), end(filenames));
-        vm.add_loader(loader);
+    try {
+        {
+            std::vector<std::string> filenames
+                    = {"../../../dex/framework/core.dex",
+                       "../../../dex/framework/framework.dex",
+                       "../../../dex/framework/framework2.dex",
+                       "../../../dex/framework/ext.dex",
+                       "../../../dex/framework/conscrypt.dex",
+                       "../../../dex/framework/okhttp.dex",
+                       "../../../dex/framework/core-junit.dex",
+                       "../../../dex/framework/android.test.runner.dex",
+                       "../../../dex/framework/android.policy.dex"};
+            jitana::class_loader loader(system_loader_hdl, "SystemLoader",
+                                        begin(filenames), end(filenames));
+            vm.add_loader(loader);
+        }
+
+        {
+            std::vector<std::string> filenames;
+            jitana::class_loader loader(app_loader_hdl, "AppLoader",
+                                        begin(filenames), end(filenames));
+            vm.add_loader(loader, system_loader_hdl);
+        }
+
+        update(0);
+
+        signal(SIGINT, on_sigint);
+
+        // Execute the main loop.
+        glutMainLoop();
+
+        write_graphviz();
+        write_traces();
+        write_vtables();
+        write_dtables();
     }
-
-    {
-        std::vector<std::string> filenames;
-        jitana::class_loader loader(app_loader_hdl, "AppLoader",
-                                    begin(filenames), end(filenames));
-        vm.add_loader(loader, system_loader_hdl);
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n\n";
+        std::cerr << "Please make sure that ";
+        std::cerr << "all dependencies are installed correctly, and ";
+        std::cerr << "the DEX files exist.\n";
+        return 1;
     }
-
-    update(0);
-
-    signal(SIGINT, on_sigint);
-
-    // Execute the main loop.
-    glutMainLoop();
-
-    write_graphviz();
-    write_traces();
-    write_vtables();
-    write_dtables();
 }
