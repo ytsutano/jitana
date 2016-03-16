@@ -55,17 +55,7 @@ Install all the dependencies first. Then
 
 ### Ubuntu
 
-Jitana needs GCC 4.9 On Ubuntu 14.04, only GCC 4.8 is provided. In addition to
-all the dependencies needed, you might need to install g++-4.9 or clang.
-
-    sudo apt-get install g++-4.9
-
-Then
-
-    mkdir build
-    cd build
-    CXX=/usr/bin/g++-4.9 cmake -DCMAKE_BUILD_TYPE=Release ../jitana
-    make -j8
+Please refer to [Compiling Jitana on Linux](doc/jitana_on_ubuntu.md).
 
 ### Windows
 

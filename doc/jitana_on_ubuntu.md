@@ -1,7 +1,7 @@
 Compiling Jitana on Linux
 =========================
 
-Updated: 2015-01-22
+Updated: 2016-03-15
 
 ## Ubuntu 14.04 LTS
 
@@ -19,11 +19,19 @@ Boost:
 
     sudo apt-get install libboost-all-dev
 
-g++-4.9 for the the partial C++14 support:
+g++-4.9 for the the partial C++14 support (any newer version of GCC or Clang works, too):
 
     sudo add-apt-repository ppa:ubuntu-toolchain-r/test
     sudo apt-get update
     sudo apt-get install g++-4.9
+
+Doxygen (optional):
+
+    sudo apt-get install doxygen
+
+You also need to install:
+
+- [ApkTool](http://ibotpeaches.github.io/Apktool/) (and Java)
 
 ### Installing ADB
 
@@ -33,5 +41,17 @@ g++-4.9 for the the partial C++14 support:
 
 ### Compiling Jitana
 
-    CXX=/usr/bin/g++-4.9 cmake ../jitana
+Jitana uses CMake which supports out-of-source build. In this document, the
+following directory structure is assumed:
+
+    .
+    ├── jitana (source code downloaded)
+    ├── dex    (DEX files)
+    └── build  (build directory you make)
+
+Make sure you have `jitana` and `dex` directories are in the current directory:
+
+    mkdir build
+    cd build
+    cmake -DCMAKE_CXX_COMPILER=g++-4.9 -DCMAKE_BUILD_TYPE=Release ../jitana
     make -j8
