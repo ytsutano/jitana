@@ -1,0 +1,70 @@
+This directory was contributed by Shakthi Bachala for the ISSTA specific
+analysis. It's not officially part of Jitana.
+
+Copyright (c) 2016 Shakthi Bachala
+
+---
+
+IAC_Location
+Files Created:
+
+IAC_LOC:
+Scripts:
+1. launch_sr_loc.sh: Run all the apps from a location
+
+Code:
+1. resource_shared_graph.hpp: checks for implicit and explicit intents, parsing
+   and loading of manifest file, writing the graphs using graphviz
+2. main.cpp: load manifest and then create all the graphs(for analysis added to
+   the resource shared graph)
+
+Buiding IAC_Loc is Same as jitana:
+cd build
+cmake ../jitana
+make -j* ( where * depends on the number of cores, usually j4 to j8)
+mkdir ../dex/aut
+mkdir ../dex/aut/extracted
+
+To run IAC_Loc:
+Go to build folder and run
+$ source ./launch_sr_loc.sh  ../dex/aut/iac_loc_in/jitana_poc > ${PWD}/log.txt
+1. Location of the apks= ../dex/aut/iac_loc_in/jitana_poc (there are many
+   applications in the folder iac_loc_in)
+2. Logfile = ${PWD}/log.txt = build/log.txt
+3. Resource Shared Graph is created in build/output/resource_sharing_graph.dot
+   (This is the additional graph created by the plugin on top of jitana_core)
+
+
+Device_Analysis_in_BYOD:
+Scripts:
+1. launch_sr_device.sh : Run all the apps from a device
+
+Code:
+1. resource_shared_graph.hpp: implicit and explicit intents, parsing and
+   loading a manifest file, writing the graphs using graphviz
+2. main.cpp: load manifest and then create all the graphs(for analysis added
+   the resource shared graph)
+
+Buiding IAC_Device is Same as jitana:
+cd build
+cmake ../jitana
+make -j* ( where * depends on the number of cores, usually j4 to j8)
+mkdir ../dex/aut
+mkdir ../dex/aut/extracted
+
+To run IAC_Device:
+Go to build folder and run
+source ./launch_sr_device.sh > ${PWD}/log.txt
+1. Logfile = ${PWD}/log.txt = build/log.txt
+2. Resource Shared Graph is created in build/output/resource_sharing_graph.dot (This is the additional graph created by the plugin on top of jitana_core)
+
+
+Notes: IAC is not mature yet as it handles only implicit and explicit intents.
+We are working on building a taint analysis and this IAC with other components(Broadcast recievers, Content Providers and Services) and adding other inter application resources like files which will be our future work.
+
+Set these four values
+export ANDROID_HOME= {Andorid_SDK_Location}/sdk
+export JAVA_HOME=/usr/lib/jvm/java-7-oracle
+export PATH=$ANDROID_HOME/tools:$PATH
+export PATH=$ANDROID_HOME/platform-tools:$PATH
+export AAPT=${ANDROID_HOME}/build-tools/18.1.0/aapt
