@@ -489,6 +489,7 @@ namespace jitana {
                 }
                 print_common_label();
                 os_ << "color=green,";
+                os_ << "URL=\"insn/" << x.hdl.insn_hdl.method_hdl << ".dot\",";
             }
 
             void operator()(const pag_alloc& x) const
@@ -501,6 +502,7 @@ namespace jitana {
                 }
                 print_common_label();
                 os_ << "color=blue,";
+                os_ << "URL=\"insn/" << x.hdl.method_hdl << ".dot\",";
             }
 
             void operator()(const pag_reg_dot_field& x) const
@@ -514,6 +516,8 @@ namespace jitana {
                 }
                 print_common_label();
                 os_ << "color=red,";
+                os_ << "URL=\"insn/" << x.reg_hdl.insn_hdl.method_hdl
+                    << ".dot\",";
             }
 
             void operator()(const pag_alloc_dot_field& x) const
@@ -548,6 +552,7 @@ namespace jitana {
                 }
                 print_common_label();
                 os_ << "color=black,";
+                os_ << "URL=\"insn/" << x.hdl.insn_hdl.method_hdl << ".dot\",";
             }
 
             void operator()(const pag_alloc_dot_array& x) const

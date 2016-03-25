@@ -121,6 +121,8 @@ namespace jitana {
             os << ",";
             os << "shape=record";
             os << ",";
+            os << "URL=\"insn/" << g[v].hdl << ".dot\"";
+            os << ",";
             os << "colorscheme=pastel19, style=filled, ";
             os << "fillcolor=";
             os << ((9 + unsigned(g[v].hdl.file_hdl.loader_hdl) - 3) % 9 + 1);
@@ -314,6 +316,10 @@ namespace jitana {
                 os << "label=" << escape_dot_record_string(label_ss.str());
                 os << ",";
                 os << "shape=record";
+                if (auto* m = const_val<dex_method_hdl>(g[v].insn)) {
+                    os << ",";
+                    os << "URL=\"" << *m << ".dot\"";
+                }
                 if (block_head) {
                     os << ", color=red";
                     if (g[v].counter != 0) {
