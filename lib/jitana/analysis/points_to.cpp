@@ -23,20 +23,8 @@
 #include <unordered_map>
 
 #include <boost/variant.hpp>
-#include <boost/pending/disjoint_sets.hpp>
 
 using namespace jitana;
-
-namespace {
-    using pag_parent_map
-            = boost::property_map<pointer_assignment_graph,
-                                  pag_vertex_descriptor
-                                          pag_vertex_property::*>::type;
-    using pag_rank_map = boost::property_map<pointer_assignment_graph,
-                                             int pag_vertex_property::*>::type;
-    using pag_disjoint_sets
-            = boost::disjoint_sets<pag_rank_map, pag_parent_map>;
-}
 
 namespace {
     struct invocation {
@@ -67,7 +55,6 @@ namespace {
         contextual_call_graph& cg;
         virtual_machine& vm;
         bool on_the_fly_cg;
-        pag_disjoint_sets ds;
 
         const insn_graph* ig = nullptr;
         insn_vertex_descriptor iv;
@@ -80,12 +67,7 @@ namespace {
         points_to_algorithm_data(pointer_assignment_graph& pag,
                                  contextual_call_graph& cg, virtual_machine& vm,
                                  bool on_the_fly_cg)
-                : pag(pag),
-                  cg(cg),
-                  vm(vm),
-                  on_the_fly_cg(on_the_fly_cg),
-                  ds(get(&pag_vertex_property::rank, pag),
-                     get(&pag_vertex_property::parent, pag))
+                : pag(pag), cg(cg), vm(vm), on_the_fly_cg(on_the_fly_cg)
         {
         }
 
@@ -100,13 +82,13 @@ namespace {
         void propagate_incremental(pag_vertex_descriptor src_v,
                                    pag_vertex_descriptor dst_v)
         {
-            propagate(dst_v, pag[pag[src_v].parent].in_set);
+            propagate(dst_v, pag[src_v].in_set);
         }
 
         void propagate_all(pag_vertex_descriptor src_v,
                            pag_vertex_descriptor dst_v)
         {
-            propagate(dst_v, pag[pag[src_v].parent].points_to_set);
+            propagate(dst_v, pag[src_v].points_to_set);
         }
 
     private:
@@ -114,7 +96,7 @@ namespace {
                        const std::vector<pag_vertex_descriptor>& out_set)
         {
             if (!out_set.empty()) {
-                auto& dst_in_set = pag[pag[dst_v].parent].in_set;
+                auto& dst_in_set = pag[dst_v].in_set;
                 auto mid = dst_in_set.insert(end(dst_in_set), begin(out_set),
                                              end(out_set));
                 std::inplace_merge(begin(dst_in_set), mid, end(dst_in_set));
@@ -748,7 +730,6 @@ namespace {
         bool update(const method_vertex_descriptor& entry_mv)
         {
             make_vertices_from_method(entry_mv);
-            simplify();
 
 #define PRINT_PROGRESS 0
 #if PRINT_PROGRESS
@@ -781,7 +762,7 @@ namespace {
 
                 filter_in_set(v);
 
-                if (d_.pag[d_.pag[v].parent].in_set.empty()) {
+                if (d_.pag[v].in_set.empty()) {
                     // Points-to does not need to be changed.
                     continue;
                 }
@@ -794,7 +775,7 @@ namespace {
                     // Compute a set of actual types of objects pointed by the
                     // in-set of the register.
                     std::vector<dex_type_hdl> alloc_types;
-                    for (auto alloc_v : d_.pag[d_.pag[v].parent].in_set) {
+                    for (auto alloc_v : d_.pag[v].in_set) {
                         alloc_types.push_back(*d_.pag[alloc_v].type);
                     }
                     unique_sort(alloc_types);
@@ -832,15 +813,13 @@ namespace {
                             d_.insn_hdl = prev_insn_hdl;
                             d_.iv = prev_iv;
                             d_.ig = prev_ig;
-
-                            simplify();
                         }
                     }
                 }
 
                 process_outgoing_edges(v);
 
-                d_.pag[d_.pag[v].parent].in_set.clear();
+                d_.pag[v].in_set.clear();
             }
 #if PRINT_PROGRESS
             print_stats();
@@ -852,8 +831,8 @@ namespace {
     private:
         void filter_in_set(const pag_vertex_descriptor& v)
         {
-            auto& p2s = d_.pag[d_.pag[v].parent].points_to_set;
-            auto& in_set = d_.pag[d_.pag[v].parent].in_set;
+            auto& p2s = d_.pag[v].points_to_set;
+            auto& in_set = d_.pag[v].in_set;
 
             // Remove the elements already exist in p2s from in_set.
             std::vector<pag_vertex_descriptor> temp;
@@ -888,8 +867,8 @@ namespace {
         void update_points_to_set(const pag_vertex_descriptor& v)
         {
             // Merge in_set into p2s_set.
-            auto& p2s = d_.pag[d_.pag[v].parent].points_to_set;
-            auto& in_set = d_.pag[d_.pag[v].parent].in_set;
+            auto& p2s = d_.pag[v].points_to_set;
+            auto& in_set = d_.pag[v].in_set;
             auto p2s_mid = p2s.insert(end(p2s), begin(in_set), end(in_set));
             std::inplace_merge(begin(p2s), p2s_mid, end(p2s));
         }
@@ -921,7 +900,7 @@ namespace {
                 void operator()(const pag_reg_dot_field& x) const
                 {
                     auto& g = d_.pag;
-                    auto obj_in_set = d_.pag[d_.pag[obj_v].parent].in_set;
+                    auto obj_in_set = d_.pag[obj_v].in_set;
 
                     const auto& fg = d_.vm.fields();
                     const auto& cg = d_.vm.classes();
@@ -969,7 +948,7 @@ namespace {
                 void operator()(const pag_reg_dot_array&) const
                 {
                     auto& g = d_.pag;
-                    auto obj_in_set = d_.pag[d_.pag[obj_v].parent].in_set;
+                    auto obj_in_set = d_.pag[obj_v].in_set;
 
                     for (auto alloc_v : obj_in_set) {
                         const auto& alloc_vertex
@@ -1077,11 +1056,6 @@ namespace {
                     boost::apply_visitor(vis, ig[iv].insn);
                 }
             }
-        }
-
-        void simplify()
-        {
-            // Colapse SCC.
         }
 
     private:

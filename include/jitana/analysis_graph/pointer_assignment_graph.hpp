@@ -212,9 +212,6 @@ namespace jitana {
 
         boost::optional<dex_type_hdl> type;
 
-        pag_vertex_descriptor parent;
-        int rank;
-
         std::vector<pag_vertex_descriptor> in_set;
         std::vector<pag_vertex_descriptor> points_to_set;
         std::vector<pag_vertex_descriptor> dereferenced_by;
@@ -358,7 +355,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = reg;
         g[v].context = context;
-        g[v].parent = v;
         g[boost::graph_bundle].reg_vertex_lut.insert({reg, v});
         return v;
     }
@@ -374,7 +370,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = alloc;
         g[v].context = no_insn_hdl;
-        g[v].parent = v;
         g[v].points_to_set.push_back(v);
         g[boost::graph_bundle].alloc_vertex_lut.insert({alloc, v});
         return v;
@@ -392,7 +387,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = rdf;
         g[v].context = context;
-        g[v].parent = v;
         g[boost::graph_bundle].reg_dot_field_vertex_lut.insert({rdf, v});
         return v;
     }
@@ -410,7 +404,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = adf;
         g[v].context = no_insn_hdl;
-        g[v].parent = v;
         g[boost::graph_bundle].alloc_dot_field_vertex_lut.insert({adf, v});
         return v;
     }
@@ -427,7 +420,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = sf;
         g[v].context = no_insn_hdl;
-        g[v].parent = v;
         g[boost::graph_bundle].static_field_vertex_lut.insert({sf, v});
         return v;
     }
@@ -445,7 +437,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = rda;
         g[v].context = context;
-        g[v].parent = v;
         g[boost::graph_bundle].reg_dot_array_vertex_lut.insert({rda, v});
         return v;
     }
@@ -462,7 +453,6 @@ namespace jitana {
         auto v = add_vertex(g);
         g[v].vertex = ada;
         g[v].context = no_insn_hdl;
-        g[v].parent = v;
         g[boost::graph_bundle].alloc_dot_array_vertex_lut.insert({ada, v});
         return v;
     }
@@ -589,9 +579,9 @@ namespace jitana {
                             << "\\l";
                     }
                 }
-                if (!g_[g_[v_].parent].points_to_set.empty()) {
+                if (!g_[v_].points_to_set.empty()) {
                     os_ << "|[";
-                    for (auto x : g_[g_[v_].parent].points_to_set) {
+                    for (auto x : g_[v_].points_to_set) {
                         os_ << " " << x;
                     }
                     os_ << " ]";
