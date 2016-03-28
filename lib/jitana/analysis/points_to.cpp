@@ -804,38 +804,36 @@ namespace {
                                                      false);
                         const insn_graph& ig = d_.vm.methods()[mv].insns;
                         insn_vertex_descriptor iv = ih.second.idx;
-                        if (const auto* insn = get<insn_invoke>(&ig[iv].insn)) {
-                            // Target JVM method handle.
-                            auto target_jmh
-                                    = d_.vm.make_jvm_hdl(insn->const_val);
 
-                            for (const auto& ath : alloc_types) {
-                                // Update the type of the target_jmh to the
-                                // actual one.
-                                target_jmh.type_hdl = d_.vm.make_jvm_hdl(ath);
+                        const auto* insn = get<insn_invoke>(&ig[iv].insn);
+                        assert(insn);
 
-                                // Process the invoked method.
-                                auto mv = d_.vm.find_method(target_jmh, false);
-                                auto prev_context = d_.context;
-                                auto prev_insn_hdl = d_.insn_hdl;
-                                auto prev_iv = d_.iv;
-                                auto prev_ig = d_.ig;
-                                d_.context = ih.first;
-                                d_.insn_hdl = ih.second;
-                                d_.iv = iv;
-                                d_.ig = &ig;
-                                add_invoke_edges(d_, *mv, *insn);
-                                make_vertices_from_method(*mv, ih.second);
-                                d_.context = prev_context;
-                                d_.insn_hdl = prev_insn_hdl;
-                                d_.iv = prev_iv;
-                                d_.ig = prev_ig;
+                        // Target JVM method handle.
+                        auto target_jmh = d_.vm.make_jvm_hdl(insn->const_val);
 
-                                simplify();
-                            }
-                        }
-                        else {
-                            throw std::runtime_error("shouldn't happen");
+                        for (const auto& ath : alloc_types) {
+                            // Update the type of the target_jmh to the actual
+                            // one.
+                            target_jmh.type_hdl = d_.vm.make_jvm_hdl(ath);
+
+                            // Process the invoked method.
+                            auto mv = d_.vm.find_method(target_jmh, false);
+                            auto prev_context = d_.context;
+                            auto prev_insn_hdl = d_.insn_hdl;
+                            auto prev_iv = d_.iv;
+                            auto prev_ig = d_.ig;
+                            d_.context = ih.first;
+                            d_.insn_hdl = ih.second;
+                            d_.iv = iv;
+                            d_.ig = &ig;
+                            add_invoke_edges(d_, *mv, *insn);
+                            make_vertices_from_method(*mv, ih.second);
+                            d_.context = prev_context;
+                            d_.insn_hdl = prev_insn_hdl;
+                            d_.iv = prev_iv;
+                            d_.ig = prev_ig;
+
+                            simplify();
                         }
                     }
                 }
