@@ -52,7 +52,7 @@ namespace std {
 namespace {
     struct points_to_algorithm_data {
         pointer_assignment_graph& pag;
-        contextual_call_graph& cg;
+        contextual_call_graph& ccg;
         virtual_machine& vm;
         bool on_the_fly_cg;
 
@@ -65,9 +65,9 @@ namespace {
         std::unordered_set<invocation> visited;
 
         points_to_algorithm_data(pointer_assignment_graph& pag,
-                                 contextual_call_graph& cg, virtual_machine& vm,
-                                 bool on_the_fly_cg)
-                : pag(pag), cg(cg), vm(vm), on_the_fly_cg(on_the_fly_cg)
+                                 contextual_call_graph& ccg,
+                                 virtual_machine& vm, bool on_the_fly_cg)
+                : pag(pag), ccg(ccg), vm(vm), on_the_fly_cg(on_the_fly_cg)
         {
         }
 
@@ -157,7 +157,7 @@ namespace {
             return;
         }
 
-        // lookup_ccg_vertex(tgt_mvprop.hdl, d_.cg);
+        // lookup_ccg_vertex(tgt_mvprop.hdl, d_.ccg);
         ccg_ofs << "\"" << d_.insn_hdl.method_hdl << "\"";
         ccg_ofs << "->";
         ccg_ofs << "\"" << tgt_mvprop.hdl << "\"";
@@ -721,9 +721,9 @@ namespace {
 
     class pag_updater {
     public:
-        pag_updater(pointer_assignment_graph& pag, contextual_call_graph& cg,
+        pag_updater(pointer_assignment_graph& pag, contextual_call_graph& ccg,
                     virtual_machine& vm, bool on_the_fly_cg)
-                : d_(pag, cg, vm, on_the_fly_cg)
+                : d_(pag, ccg, vm, on_the_fly_cg)
         {
         }
 
@@ -785,7 +785,6 @@ namespace {
                                                      false);
                         const insn_graph& ig = d_.vm.methods()[mv].insns;
                         insn_vertex_descriptor iv = ih.second.idx;
-
                         const auto* insn = get<insn_invoke>(&ig[iv].insn);
                         assert(insn);
 
@@ -1064,11 +1063,11 @@ namespace {
 }
 
 bool jitana::update_points_to_graphs(pointer_assignment_graph& pag,
-                                     contextual_call_graph& cg,
+                                     contextual_call_graph& ccg,
                                      virtual_machine& vm,
                                      const method_vertex_descriptor& mv,
                                      bool on_the_fly_cg)
 {
-    pag_updater updater(pag, cg, vm, on_the_fly_cg);
+    pag_updater updater(pag, ccg, vm, on_the_fly_cg);
     return updater.update(mv);
 }

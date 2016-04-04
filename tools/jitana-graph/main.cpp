@@ -131,12 +131,12 @@ void test_virtual_machine()
 
         {
             jitana::pointer_assignment_graph pag;
-            jitana::contextual_call_graph cg;
+            jitana::contextual_call_graph ccg;
 
             auto start = std::chrono::system_clock::now();
 
             // Apply points-to analysis.
-            jitana::update_points_to_graphs(pag, cg, vm, *mv);
+            jitana::update_points_to_graphs(pag, ccg, vm, *mv);
 
             auto duration
                     = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -154,8 +154,15 @@ void test_virtual_machine()
             std::cout << "duration: " << duration.count() << " ms\n";
 
             std::cout << "Writing PAG..." << std::endl;
-            std::ofstream ofs("output/pag.dot");
-            jitana::write_graphviz_pointer_assignment_graph(ofs, pag, &vm);
+            {
+                std::ofstream ofs("output/pag.dot");
+                jitana::write_graphviz_pointer_assignment_graph(ofs, pag, &vm);
+            }
+
+            {
+                std::ofstream ofs("output/ccg2.dot");
+                boost::write_graphviz(ofs, ccg);
+            }
         }
     }
     else {
