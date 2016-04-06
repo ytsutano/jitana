@@ -59,12 +59,12 @@ namespace jitana {
                 const auto& insn = ig[iv].insn;
 
                 if (sink_set_flag) {
-                    const auto* csi = get<insn_const_string>(&insn);
-                    if (csi && csi->regs[0] == sink_reg_idx) {
+                    const auto* cs_insn = get<insn_const_string>(&insn);
+                    if (cs_insn && cs_insn->regs[0] == sink_reg_idx) {
                         sink_set_flag = false;
 
                         r_si.name = "L";
-                        r_si.name += csi->const_val;
+                        r_si.name += cs_insn->const_val;
                         r_si.name += ";";
                         std::replace(begin(r_si.name), end(r_si.name), '.',
                                      '/');
@@ -73,18 +73,13 @@ namespace jitana {
                     }
                 }
 
-                if (info(op(insn)).can_invoke()) {
-                    auto imm = vm.find_method(*const_val<dex_method_hdl>(insn),
-                                              true);
-                    if (imm && *imm == intent_mv) {
+                if (const auto* invoke_insn = get<insn_invoke>(&insn)) {
+                    auto imm_mv = vm.find_method(invoke_insn->const_val, true);
+                    if (imm_mv && *imm_mv == intent_mv) {
                         r_so.name = mg[v].jvm_hdl.unique_name;
                         r_so.id = mg[v].class_hdl.file_hdl.loader_hdl.idx;
-
-                        const auto& u = uses(insn);
-                        if (!u.empty()) {
-                            sink_set_flag = true;
-                            sink_reg_idx = u.back();
-                        }
+                        sink_set_flag = true;
+                        sink_reg_idx = invoke_insn->regs[2];
                     }
                 }
             }
@@ -121,24 +116,20 @@ namespace jitana {
                 const auto& insn = ig[iv].insn;
 
                 if (intent_set_flag) {
-                    const auto* csi = get<insn_const_string>(&insn);
-                    if (csi && csi->regs[0] == sink_reg_intent_idx) {
+                    const auto* cs_insn = get<insn_const_string>(&insn);
+                    if (cs_insn && cs_insn->regs[0] == sink_reg_intent_idx) {
                         intent_set_flag = false;
                         all_source_intents.emplace_back(
                                 mg[v].class_hdl.file_hdl.loader_hdl.idx,
-                                csi->const_val);
+                                cs_insn->const_val);
                     }
                 }
 
-                if (info(op(insn)).can_invoke()) {
-                    auto imm = vm.find_method(*const_val<dex_method_hdl>(insn),
-                                              true);
+                if (const auto* invoke_insn = get<insn_invoke>(&insn)) {
+                    auto imm = vm.find_method(invoke_insn->const_val, true);
                     if (imm && *imm == intent_mv) {
-                        const auto& u = uses(insn);
-                        if (!u.empty()) {
-                            intent_set_flag = true;
-                            sink_reg_intent_idx = u.back();
-                        }
+                        intent_set_flag = true;
+                        sink_reg_intent_idx = invoke_insn->regs[1];
                     }
                 }
             }
