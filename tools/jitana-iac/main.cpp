@@ -140,6 +140,7 @@ void test_virtual_machine()
 
 void write_graphs(const jitana::virtual_machine& vm)
 {
+    std::cout << "Writing resource sharing graph..." << std::flush;
     {
         std::ofstream ofs("output/resource_sharing_graph.dot");
 
@@ -150,34 +151,21 @@ void write_graphs(const jitana::virtual_machine& vm)
         jitana::write_graphviz_resource_sharing_graph_explicit(
                 ofs, so_si, class_loader_name_pair, g);
     }
+    std::cout << " Done" << std::endl;
+
+    std::cout << "Writing class loader graph..." << std::flush;
     {
         std::ofstream ofs("output/loader_graph.dot");
         write_graphviz_loader_graph(ofs, vm.loaders());
     }
+    std::cout << " Done" << std::endl;
 
+    std::cout << "Writing class graph..." << std::flush;
     {
         std::ofstream ofs("output/class_graph.dot");
         write_graphviz_class_graph(ofs, vm.classes());
     }
-
-    {
-        std::ofstream ofs("output/method_graph.dot");
-        write_graphviz_method_graph(ofs, vm.methods());
-    }
-
-    {
-        std::ofstream ofs("output/field_graph.dot");
-        write_graphviz_field_graph(ofs, vm.fields());
-    }
-
-    for (const auto& v : boost::make_iterator_range(vertices(vm.methods()))) {
-        const auto& ig = vm.methods()[v].insns;
-        if (num_vertices(ig) > 0) {
-            std::stringstream ss;
-            ss << "output/insn/" << vm.methods()[v].hdl << ".dot";
-            std::ofstream ofs(ss.str());
-        }
-    }
+    std::cout << " Done" << std::endl;
 }
 
 int main()
