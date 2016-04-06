@@ -29,9 +29,7 @@
 #include "jitana/vm_graph/graph_common.hpp"
 
 #include <boost/graph/graphviz.hpp>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/depth_first_search.hpp>
-#include <boost/graph/reverse_graph.hpp>
+#include <boost/range/adaptors.hpp>
 
 namespace jitana {
     static std::vector<std::string> app_names;

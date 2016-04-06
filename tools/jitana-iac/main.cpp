@@ -17,23 +17,17 @@
 #include <iostream>
 #include <vector>
 #include <regex>
+#include <algorithm>
+#include <string>
+#include <fstream>
 
 #include <boost/graph/graphviz.hpp>
-#include <boost/type_erasure/any.hpp>
-#include <boost/type_erasure/any_cast.hpp>
-#include <boost/type_erasure/operators.hpp>
-#include <boost/range/iterator_range.hpp>
 
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
 #include <jitana/analysis/data_flow.hpp>
-// rsg
-#include <boost/range/adaptors.hpp>
-#include <boost/range/algorithm.hpp>
 #include <jitana/analysis/resource_sharing.hpp>
-#include <algorithm>
-#include <string>
-#include <fstream>
+
 static std::vector<uint8_t> source;
 static std::vector<uint8_t> sink;
 static std::vector<std::pair<jitana::r_hdl, jitana::r_hdl>> so_si;
@@ -43,7 +37,7 @@ static std::vector<std::pair<int, std::string>> class_loader_name_pair;
 
 void write_graphs(const jitana::virtual_machine& vm);
 
-void test_virtual_machine()
+void run_iac_analysis()
 {
     jitana::virtual_machine vm;
 
@@ -63,84 +57,57 @@ void test_virtual_machine()
         vm.add_loader(loader);
     }
 
-    const std::string aut_details = "extracted/location.txt";
+    int loader_idx = 1;
+    std::ifstream location_ifs("extracted/location.txt");
+    std::string name;
+    while (std::getline(location_ifs, name)) {
+        jitana::app_names.push_back(name);
 
-    std::pair<std::string, std::string> apk_name_location;
-    std::vector<std::pair<std::string, std::string>> all_apk_details;
-    std::pair<int, std::string> loader_name_pair;
-    std::ifstream log(aut_details);
-    std::ifstream log_in_stream;
-    std::string log_line;
-    std::pair<int, std::string> clnp;
-    while (std::getline(log, log_line)) {
-        log_in_stream >> log_line;
-        std::string loc, n;
-        std::size_t pos_space = log_line.find(" ");
-        loc = log_line.substr(pos_space + 1);
-        n = log_line.substr(0, pos_space);
-        apk_name_location = std::make_pair(n, loc);
-        all_apk_details.push_back(apk_name_location);
-    }
-    log_in_stream.close();
-    int loader_class_value = 1;
-    for (auto& name_location : all_apk_details) {
-        int keyy = loader_class_value;
-        std::string app_name = std::get<0>(name_location);
-        jitana::app_names.push_back(app_name);
-        std::string location_app = std::get<1>(name_location);
-        std::string location_manifest = location_app;
-        location_manifest.append(app_name);
-        location_manifest.append(".manifest.xml");
-        jitana::parse_manifest_load_intent(keyy, location_manifest,
+        std::string dir = "extracted/" + name + "/";
+        std::string manifest = dir + name + ".manifest.xml";
+        jitana::parse_manifest_load_intent(loader_idx, manifest,
                                            all_sink_intents);
-        loader_name_pair = std::make_pair(loader_class_value,
-                                          std::get<0>(name_location));
-        location_app.append("classes.dex");
-        clnp = std::make_pair(loader_class_value, std::get<0>(name_location));
-        class_loader_name_pair.push_back(clnp);
-        {
-            const auto& filenames = {location_app};
+        class_loader_name_pair.emplace_back(loader_idx, name);
 
-            jitana::class_loader loader(loader_class_value,
-                                        std::get<0>(name_location),
-                                        begin(filenames), end(filenames));
+        {
+            const auto& filenames = {dir + "classes.dex"};
+            jitana::class_loader loader(loader_idx, name, begin(filenames),
+                                        end(filenames));
             vm.add_loader(loader, 0);
         }
-        vm.load_all_classes(loader_class_value);
-        std::cout << "Loaded Successfully: " << loader_class_value << " "
-                  << std::get<0>(name_location) << "\n";
-        loader_class_value++;
+
+        vm.load_all_classes(loader_idx);
+        std::cout << "Loaded Successfully: " << loader_idx << " " << name
+                  << "\n";
+
+        ++loader_idx;
     }
 
+    // Compute the call graph.
     jitana::add_call_graph_edges(vm);
-    std::cout << "Call Graph SUCCESS"
-              << "\n";
+
+    // Compute the data-flow.
     std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
                   [&](const jitana::method_vertex_descriptor& v) {
                       add_data_flow_edges(vm.methods()[v].insns);
                   });
-    std::cout << "DFA  SUCCESS"
-              << "\n";
 
+    // Create a resource sharing graph (kind of).
     jitana::add_resource_graph_edges_implicit(vm, all_source_intents,
                                               all_sink_intents);
     jitana::add_resource_graph_edges_explicit(vm, so_si);
-    std::cout << "RSG  SUCCESS"
-              << "\n";
 
-    // std::cout << "Source : " << unsigned(source) << "  ; Sink: " <<
-    // unsigned(sink) << "\n";
+    std::cout << "Writing graphs..." << std::endl;
+    write_graphs(vm);
+
     std::cout << "# of Loaders: " << num_vertices(vm.loaders()) << "\n";
     std::cout << "# of classes: " << num_vertices(vm.classes()) << "\n";
     std::cout << "# of methods: " << num_vertices(vm.methods()) << "\n";
     std::cout << "# of fields:  " << num_vertices(vm.fields()) << "\n";
-    std::cout << "Writing graphs..." << std::endl;
-    write_graphs(vm);
 }
 
 void write_graphs(const jitana::virtual_machine& vm)
 {
-    std::cout << "Writing resource sharing graph..." << std::flush;
     {
         std::ofstream ofs("output/resource_sharing_graph.dot");
 
@@ -151,24 +118,19 @@ void write_graphs(const jitana::virtual_machine& vm)
         jitana::write_graphviz_resource_sharing_graph_explicit(
                 ofs, so_si, class_loader_name_pair, g);
     }
-    std::cout << " Done" << std::endl;
 
-    std::cout << "Writing class loader graph..." << std::flush;
     {
         std::ofstream ofs("output/loader_graph.dot");
         write_graphviz_loader_graph(ofs, vm.loaders());
     }
-    std::cout << " Done" << std::endl;
 
-    std::cout << "Writing class graph..." << std::flush;
     {
         std::ofstream ofs("output/class_graph.dot");
         write_graphviz_class_graph(ofs, vm.classes());
     }
-    std::cout << " Done" << std::endl;
 }
 
 int main()
 {
-    test_virtual_machine();
+    run_iac_analysis();
 }
