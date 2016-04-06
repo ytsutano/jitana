@@ -28,12 +28,11 @@
 #include <jitana/analysis/data_flow.hpp>
 #include <jitana/analysis/resource_sharing.hpp>
 
-static std::vector<uint8_t> source;
-static std::vector<uint8_t> sink;
 static std::vector<std::pair<jitana::r_hdl, jitana::r_hdl>> so_si;
-static std::vector<std::pair<int, std::string>> all_sink_intents;
-static std::vector<std::pair<int, std::string>> all_source_intents;
-static std::vector<std::pair<int, std::string>> class_loader_name_pair;
+static std::vector<std::pair<jitana::class_loader_hdl, std::string>>
+        all_sink_intents;
+static std::vector<std::pair<jitana::class_loader_hdl, std::string>>
+        all_source_intents;
 
 void write_graphs(const jitana::virtual_machine& vm);
 
@@ -67,7 +66,6 @@ void run_iac_analysis()
         std::string manifest = dir + name + ".manifest.xml";
         jitana::parse_manifest_load_intent(loader_idx, manifest,
                                            all_sink_intents);
-        class_loader_name_pair.emplace_back(loader_idx, name);
 
         {
             const auto& filenames = {dir + "classes.dex"};
@@ -93,8 +91,7 @@ void run_iac_analysis()
                   });
 
     // Create a resource sharing graph (kind of).
-    jitana::add_resource_graph_edges_implicit(vm, all_source_intents,
-                                              all_sink_intents);
+    jitana::add_resource_graph_edges_implicit(vm, all_source_intents);
     jitana::add_resource_graph_edges_explicit(vm, so_si);
 
     std::cout << "Writing graphs..." << std::endl;
@@ -111,12 +108,10 @@ void write_graphs(const jitana::virtual_machine& vm)
     {
         std::ofstream ofs("output/resource_sharing_graph.dot");
 
-        boost::adjacency_list<> g;
+        jitana::resource_sharing_graph g;
         jitana::write_graphviz_resource_sharing_graph_implicit(
-                ofs, all_source_intents, all_sink_intents,
-                class_loader_name_pair, g);
-        jitana::write_graphviz_resource_sharing_graph_explicit(
-                ofs, so_si, class_loader_name_pair, g);
+                all_source_intents, all_sink_intents, g);
+        jitana::write_graphviz_resource_sharing_graph_explicit(ofs, so_si, g);
     }
 
     {

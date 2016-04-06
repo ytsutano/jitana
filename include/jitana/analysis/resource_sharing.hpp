@@ -26,13 +26,14 @@
 #include <unordered_map>
 
 #include "jitana/jitana.hpp"
-#include "jitana/vm_graph/graph_common.hpp"
+#include "jitana/analysis_graph/resource_sharing_graph.hpp"
 
 #include <boost/graph/graphviz.hpp>
 #include <boost/range/adaptors.hpp>
 
 namespace jitana {
-    static std::vector<std::string> app_names;
+    static std::vector<std::string> app_names; // TODO: remove.
+
     struct r_hdl {
         uint8_t id;
         std::string name;
@@ -41,224 +42,124 @@ namespace jitana {
     inline void add_resource_graph_edges_explicit(
             virtual_machine& vm, std::vector<std::pair<r_hdl, r_hdl>>& sos_sis)
     {
+        jvm_method_hdl intent_mh = {{0, "Landroid/content/Intent;"},
+                                    "setClassName(Ljava/lang/String;Ljava/"
+                                    "lang/String;)Landroid/content/Intent;"};
+        auto intent_mv = vm.find_method(intent_mh, true);
+
+        const auto& mg = vm.methods();
         bool sink_set_flag = false;
-        std::vector<std::string> sink_values;
-        std::string sink_intent_value;
+        for (const auto& v : boost::make_iterator_range(vertices(mg))) {
+            const auto& ig = mg[v].insns;
+            r_hdl r_so;
+            r_hdl r_si;
+            register_idx sink_reg_idx;
 
-        jitana::jvm_method_hdl mhi2 = {{11, "Landroid/content/Intent;"},
-                                       "setClassName(Ljava/lang/String;Ljava/"
-                                       "lang/String;)Landroid/content/Intent;"};
-        auto vmh2 = vm.find_method(mhi2, true);
+            for (const auto& iv : boost::adaptors::reverse(vertices(ig))) {
+                const auto& insn = ig[iv].insn;
 
-        std::for_each(
-                vertices(vm.methods()).first, vertices(vm.methods()).second,
-                [&](const jitana::method_vertex_descriptor& v) {
-                    jitana::insn_graph ig = vm.methods()[v].insns;
-                    r_hdl r_so;
-                    r_hdl r_si;
-                    jitana::register_idx sink_register_idx;
+                if (sink_set_flag) {
+                    const auto* csi = get<insn_const_string>(&insn);
+                    if (csi && csi->regs[0] == sink_reg_idx) {
+                        sink_set_flag = false;
 
-                    for (const auto& iv :
-                         boost::adaptors::reverse(vertices(ig))) {
-                        const auto& prop = ig[iv];
-                        const auto& insn_const_val
-                                = jitana::const_val<std::string>(prop.insn);
-                        const auto& insn_info = info(op(prop.insn));
-                        const auto& uses_reg = uses(prop.insn);
-                        const auto& def_reg = defs(prop.insn);
-                        if (sink_set_flag == true && insn_info.sets_register()
-                            && std::string(insn_info.mnemonic())
-                                            .compare("const-string")
-                                    == 0) {
-                            for (auto& idx : def_reg) {
-                                if (idx == sink_register_idx) {
-                                    sink_set_flag = false;
-                                    std::pair<r_hdl, r_hdl> r_p;
-                                    sink_intent_value = *insn_const_val;
-                                    sink_intent_value.insert(
-                                            sink_intent_value.begin(), 'L');
-                                    std::replace(sink_intent_value.begin(),
-                                                 sink_intent_value.end(), '.',
-                                                 '/');
-                                    sink_intent_value.insert(
-                                            sink_intent_value.end(), ';');
-                                    r_si.name = sink_intent_value;
-                                    r_si.id = -1;
-                                    r_p = std::make_pair(r_so, r_si);
-                                    sos_sis.push_back(r_p);
-                                    // Reset Values
-                                    //	r_so.name[0] =  "NULL_VAL";
-                                    r_so.name = "NULL_VAL";
-                                    r_so.id = -1;
-                                    r_si.name = "NULL_VAL";
-                                    r_si.id = -1;
-                                }
-                            }
-                        }
-                        if (insn_info.can_virtually_invoke()
-                            || insn_info.can_directly_invoke()) {
-                            jitana::dex_method_hdl method_hdl
-                                    = *jitana::
-                                              const_val<jitana::dex_method_hdl>(
-                                                      prop.insn);
-                            if (auto imm = vm.find_method(method_hdl, true)) {
-                                if ((vm.methods()[*imm].jvm_hdl.unique_name
-                                     == mhi2.unique_name)
-                                    && (vm.methods()[*imm]
-                                                .jvm_hdl.type_hdl.descriptor
-                                        == mhi2.type_hdl.descriptor)) {
-                                    r_so.name = vm.methods()[v]
-                                                        .jvm_hdl.unique_name;
-                                    r_so.id = vm.methods()[v]
-                                                      .class_hdl.file_hdl
-                                                      .loader_hdl.idx;
-                                    int i = 0;
-                                    for (auto& idx :
-                                         boost::adaptors::reverse(uses_reg)) {
-                                        if (i == 0) {
-                                            sink_set_flag = true;
-                                            sink_register_idx = idx;
-                                            i++;
-                                        }
-                                    }
-                                }
-                            }
+                        r_si.name = "L";
+                        r_si.name += csi->const_val;
+                        r_si.name += ";";
+                        std::replace(begin(r_si.name), end(r_si.name), '.',
+                                     '/');
+                        r_si.id = -1;
+                        sos_sis.emplace_back(r_so, r_si);
+                    }
+                }
+
+                if (info(op(insn)).can_invoke()) {
+                    auto imm = vm.find_method(*const_val<dex_method_hdl>(insn),
+                                              true);
+                    if (imm && *imm == intent_mv) {
+                        r_so.name = mg[v].jvm_hdl.unique_name;
+                        r_so.id = mg[v].class_hdl.file_hdl.loader_hdl.idx;
+
+                        const auto& u = uses(insn);
+                        if (!u.empty()) {
+                            sink_set_flag = true;
+                            sink_reg_idx = u.back();
                         }
                     }
-                    r_so.name = "NULL_VAL";
-                    r_so.id = -1;
-                    r_si.name = "NULL_VAL";
-                    r_si.id = -1;
-                    sink_set_flag = false;
-                });
-        std::for_each(
-                vertices(vm.classes()).first, vertices(vm.classes()).second,
-                [&](const jitana::class_vertex_descriptor& v) {
-                    for (auto& so_si : sos_sis) {
-                        if (vm.classes()[v].jvm_hdl.descriptor
-                            == so_si.second.name) {
-                            so_si.second.id
-                                    = vm.classes()[v]
-                                              .hdl.file_hdl.loader_hdl.idx;
-                        }
-                    }
-                });
+                }
+            }
+
+            sink_set_flag = false;
+        }
+
+        const auto& cg = vm.classes();
+        for (const auto& v : boost::make_iterator_range(vertices(cg))) {
+            for (auto& so_si : sos_sis) {
+                if (cg[v].jvm_hdl.descriptor == so_si.second.name) {
+                    so_si.second.id = cg[v].hdl.file_hdl.loader_hdl.idx;
+                }
+            }
+        }
     }
 
     inline void add_resource_graph_edges_implicit(
             virtual_machine& vm,
-            std::vector<std::pair<int, std::string>>& all_source_intents,
-            std::vector<std::pair<int, std::string>>& /*all_sink_intents*/)
+            std::vector<std::pair<class_loader_hdl, std::string>>&
+                    all_source_intents)
     {
-        std::pair<int, std::string> so_intent;
-        bool intent_set_flag = false;
-        jitana::register_idx sink_register_intent_idx;
-        std::string sink_intent_value;
-        jitana::jvm_method_hdl mhi5
-                = {{11, "Landroid/content/Intent;"},
+        jvm_method_hdl intent_mh
+                = {{0, "Landroid/content/Intent;"},
                    "setAction(Ljava/lang/String;)Landroid/content/Intent;"};
-        auto vmh5 = vm.find_method(mhi5, true);
+        auto intent_mv = vm.find_method(intent_mh, true);
 
-        std::for_each(
-                vertices(vm.methods()).first, vertices(vm.methods()).second,
-                [&](const jitana::method_vertex_descriptor& v) {
-                    jitana::insn_graph ig = vm.methods()[v].insns;
-                    for (const auto& iv :
-                         boost::adaptors::reverse(vertices(ig))) {
-                        const auto& prop = ig[iv];
-                        const auto& insn_const_val
-                                = jitana::const_val<std::string>(prop.insn);
-                        const auto& insn_info = info(op(prop.insn));
-                        const auto& uses_reg = uses(prop.insn);
-                        const auto& def_reg = defs(prop.insn);
-                        if (intent_set_flag == true && insn_info.sets_register()
-                            && std::string(insn_info.mnemonic())
-                                            .compare("const-string")
-                                    == 0) {
-                            for (auto& idx : def_reg) {
-                                if (idx == sink_register_intent_idx) {
-                                    sink_intent_value = *insn_const_val;
-                                    so_intent = make_pair(
-                                            unsigned(vm.methods()[v]
-                                                             .class_hdl.file_hdl
-                                                             .loader_hdl.idx),
-                                            *insn_const_val);
-                                    intent_set_flag = false;
-                                    std::cout << sink_intent_value << "\n";
-                                    ;
-                                    all_source_intents.push_back(so_intent);
-                                }
-                            }
-                        }
-                        if (insn_info.can_virtually_invoke()
-                            || insn_info.can_directly_invoke()) {
-                            jitana::dex_method_hdl method_hdl
-                                    = *jitana::
-                                              const_val<jitana::dex_method_hdl>(
-                                                      prop.insn);
-                            if (auto imm = vm.find_method(method_hdl, true)) {
-                                if ((vm.methods()[*imm].jvm_hdl.unique_name
-                                     == mhi5.unique_name)
-                                    && (vm.methods()[*imm]
-                                                .jvm_hdl.type_hdl.descriptor
-                                        == mhi5.type_hdl.descriptor)) {
-                                    int i = 0;
-                                    std::cout << vm.methods()[v]
-                                                         .jvm_hdl.unique_name
-                                              << " " << vm.methods()[v].hdl.idx
-                                              << " "
-                                              << vm.methods()[v]
-                                                         .jvm_hdl
-                                                         .return_descriptor()
-                                              << "\n";
+        const auto& mg = vm.methods();
+        bool intent_set_flag = false;
+        register_idx sink_reg_intent_idx = register_idx::idx_unknown;
+        for (const auto& v : boost::make_iterator_range(vertices(mg))) {
+            const auto& ig = mg[v].insns;
+            for (const auto& iv : boost::adaptors::reverse(vertices(ig))) {
+                const auto& insn = ig[iv].insn;
 
-                                    std::cout << " Target "
-                                              << " jvm_type_hdl "
-                                              << vm.methods()[*imm]
-                                                         .jvm_hdl.type_hdl
-                                              << "\t"
-                                              << "unique_name "
-                                              << vm.methods()[*imm]
-                                                         .jvm_hdl.unique_name
-                                              << "\n";
-                                    for (auto& idx :
-                                         boost::adaptors::reverse(uses_reg)) {
-                                        if (i == 0) {
-                                            sink_register_intent_idx = idx;
-                                            i++;
-                                            intent_set_flag = true;
-                                        }
-                                    }
-                                }
-                            }
+                if (intent_set_flag) {
+                    const auto* csi = get<insn_const_string>(&insn);
+                    if (csi && csi->regs[0] == sink_reg_intent_idx) {
+                        intent_set_flag = false;
+                        all_source_intents.emplace_back(
+                                mg[v].class_hdl.file_hdl.loader_hdl.idx,
+                                csi->const_val);
+                    }
+                }
+
+                if (info(op(insn)).can_invoke()) {
+                    auto imm = vm.find_method(*const_val<dex_method_hdl>(insn),
+                                              true);
+                    if (imm && *imm == intent_mv) {
+                        const auto& u = uses(insn);
+                        if (!u.empty()) {
+                            intent_set_flag = true;
+                            sink_reg_intent_idx = u.back();
                         }
                     }
-
-                });
+                }
+            }
+        }
     }
 
-    void write_graphviz_resource_sharing_graph_explicit(
+    inline void write_graphviz_resource_sharing_graph_explicit(
             std::ostream& os, std::vector<std::pair<r_hdl, r_hdl>>& sos_sis,
-            std::vector<std::pair<int, std::string>>& /*class_loader_np*/,
-            boost::adjacency_list<>& g)
+            resource_sharing_graph& rsg)
     {
-        std::string source_app_name;
-        std::string sink_app_name;
-        for (auto& so_si : sos_sis) {
-            if ((unsigned(so_si.first.id) != 255)
-                && (unsigned(so_si.second.id) != 255)) {
-                std::cout << "Explicit Source Values:"
-                          << unsigned(so_si.first.id) << "Explicit Sink Values:"
-                          << unsigned(so_si.second.id) << "\n";
-                if (so_si.second.id != 255) {
-                    boost::add_edge(so_si.second.id, so_si.first.id, g);
-                }
+        for (const auto& so_si : sos_sis) {
+            if (so_si.first.id != 255 && so_si.second.id != 255) {
+                rsg_edge_property eprop;
+                eprop.kind = rsg_edge_property::explicit_intent;
+                eprop.description = so_si.second.name;
+                add_edge(so_si.first.id, so_si.second.id, eprop, rsg);
             }
         }
 
         auto prop_writer = [&](std::ostream& os, const auto& v) {
             std::stringstream label_ss;
-            // label_ss << "";
             label_ss << "{";
             label_ss << v;
             if (v == 0) {
@@ -269,98 +170,89 @@ namespace jitana {
                 label_ss << "|" << app_names[v - 1];
             }
             label_ss << "}";
+
             os << "[";
             os << "label=" << escape_dot_record_string(label_ss.str());
             os << ",";
             os << "shape=record";
             os << ",";
-            os << "colorscheme=pastel19, style=filled, ";
+            os << "colorscheme=pastel19, ";
+            if (degree(v, rsg) > 0) {
+                os << "style=filled, ";
+            }
+            else {
+                os << "style=dotted, ";
+            }
+            os << "fillcolor=";
+            os << ((9 + unsigned(v) - 3) % 9 + 1);
             os << "]";
         };
-        auto eprop_writer = [&](std::ostream& os, const auto& /*e*/) {
+
+        auto eprop_writer = [&](std::ostream& os, const auto& e) {
             os << "[";
-            os << "dir=both, arrowhead=none, arrowtail=empty, ";
-            os << "color=blue, weight=1";
+            switch (rsg[e].kind) {
+            case rsg_edge_property::explicit_intent:
+                os << "color=red, weight=10";
+                break;
+            case rsg_edge_property::implicit_intent:
+                os << "color=blue";
+                break;
+            }
+            // os << ", label=" << escape_dot_record_string(rsg[e].description);
             os << "]";
         };
-        auto gprop_writer = [&](std::ostream& os) { os << "rankdir=LR;"; };
-        write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
+
+        auto gprop_writer = [&](std::ostream& os) {
+            os << "\n";
+            os << "\n";
+        };
+
+        write_graphviz(os, rsg, prop_writer, eprop_writer, gprop_writer);
     }
 
-    void write_graphviz_resource_sharing_graph_implicit(
-            std::ostream& /*os*/,
-            std::vector<std::pair<int, std::string>>& source,
-            std::vector<std::pair<int, std::string>>& sink,
-            std::vector<std::pair<int, std::string>>& /*class_loader_np*/,
-            boost::adjacency_list<>& g)
+    inline void write_graphviz_resource_sharing_graph_implicit(
+            std::vector<std::pair<class_loader_hdl, std::string>>& source,
+            std::vector<std::pair<class_loader_hdl, std::string>>& sink,
+            resource_sharing_graph& rsg)
     {
-        std::string source_app_name;
-        std::string sink_app_name;
-
-        for (auto& so : source) {
-            for (auto& si : sink) {
-                if ((si.second == so.second) && (si.first != so.first)) {
-                    std::cout
-                            << "Implicit  Source Values:" << unsigned(so.first)
-                            << "Implicit Sink Values:" << unsigned(si.first)
-                            << "Intent Values:" << so.second << "\n";
-                    boost::add_edge(unsigned(si.first), unsigned(so.first), g);
+        for (const auto& so : source) {
+            for (const auto& si : sink) {
+                if (si.second == so.second && si.first != so.first) {
+                    rsg_edge_property ep;
+                    ep.kind = rsg_edge_property::implicit_intent;
+                    ep.description = so.second;
+                    add_edge(unsigned(so.first), unsigned(si.first), ep, rsg);
                 }
             }
         }
     }
 
-    void parse_manifest_load_intent(
-            int ky, std::string aut_manifest_tree,
-            std::vector<std::pair<int, std::string>>& all_si_intents)
+    inline void parse_manifest_load_intent(
+            class_loader_hdl loader_hdl, const std::string& aut_manifest_tree,
+            std::vector<std::pair<class_loader_hdl, std::string>>&
+                    all_si_intents)
     {
-        std::ifstream ifs_aut_manifest_tree(aut_manifest_tree);
-        std::ifstream log_in_stream;
-        std::string log_each_line;
-        std::vector<std::string> log_all_line;
+        bool found_action = false;
 
-        int intent_filter = 0;
-        int intent_filter_action = 0;
-        int counter_ifa = 0;
-        for (int i = 0; std::getline(ifs_aut_manifest_tree, log_each_line);
-             i++) {
-            log_all_line.push_back(log_each_line);
-        }
-        log_in_stream.close();
+        std::ifstream ifs(aut_manifest_tree);
+        std::string line;
+        while (std::getline(ifs, line)) {
+            if (found_action) {
+                auto pos = line.find("(Raw: \"");
+                if (pos != std::string::npos) {
+                    found_action = false;
 
-        std::pair<int, std::string> si_intent;
-        for (auto& line : log_all_line) {
-            log_in_stream >> line;
-            std::string loc, n;
-            std::size_t pos_space = line.find(" ");
-            n = line.substr(pos_space + 1);
-            loc = line.substr(0, pos_space);
-            if (counter_ifa == 1) {
-                std::size_t ita_start = line.find("(Raw: ");
-                if (ita_start != std::string::npos) {
-                    std::string i_f = line.substr(ita_start + 7);
-                    counter_ifa = 0;
-                    i_f.erase(std::remove(i_f.begin(), i_f.end(), '\"'),
-                              i_f.end());
-                    i_f.erase(std::remove(i_f.begin(), i_f.end(), ')'),
-                              i_f.end());
-                    std::cout << " Key1 " << ky << " Value " << i_f << "\n";
-                    if ((i_f != "android.intent.action.MAIN")
-                        && (i_f != "android.intent.action.VIEW")) {
-                        si_intent = std::make_pair(ky, i_f);
-                        all_si_intents.push_back(si_intent);
+                    auto s = line.substr(pos + 7);
+                    s.erase(std::find(begin(s), end(s), '"'), end(s));
+                    if (s != "android.intent.action.MAIN"
+                        && s != "android.intent.action.VIEW") {
+                        all_si_intents.emplace_back(loader_hdl, s);
                     }
                 }
             }
-            std::size_t ifa_found = line.find("E: action");
-            if (ifa_found != std::string::npos) {
-                intent_filter_action++;
-                counter_ifa = 1;
-            }
 
-            std::size_t if_found = line.find("E: intent-filter");
-            if (if_found != std::string::npos) {
-                intent_filter++;
+            if (line.find("E: action") != std::string::npos) {
+                found_action = true;
             }
         }
     }
