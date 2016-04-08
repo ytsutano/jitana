@@ -42,6 +42,23 @@ namespace jitana {
     inline void add_resource_graph_edges_explicit(
             virtual_machine& vm, std::vector<std::pair<r_hdl, r_hdl>>& sos_sis)
     {
+        // I have fixed most of the logical errors. But there are some
+        // fundamental problems from the original code design that are severely
+        // affecting the accuracy:
+        //
+        // 1. It assumes that everyone uses Intent.setClassName(String, String),
+        //    and ignore setClass(Context, Class<?>), setClassName(Context,
+        //    String), setComponent(ComponentName), etc. This means that we are
+        //    not detecting all explicit intents.
+        //
+        // 2. It assumes that the class name is generated using const-string
+        //    instruction within the same class. It can be generated dynamically
+        //    or created in other methods. I see only about a half of the
+        //    explicit intents that were found by searching for the invoke
+        //    instructions calling Intent.setClassName(String, String) use
+        //    const-string in a same method, so we are missing the targets of
+        //    the other half.
+
         jvm_method_hdl intent_mh = {{0, "Landroid/content/Intent;"},
                                     "setClassName(Ljava/lang/String;Ljava/"
                                     "lang/String;)Landroid/content/Intent;"};
@@ -102,6 +119,11 @@ namespace jitana {
             std::vector<std::pair<class_loader_hdl, std::string>>&
                     all_source_intents)
     {
+        // I have fixed most of the logical errors. But there are some
+        // fundamental problems from the original code design that are severely
+        // affecting the accuracy. The problem is very similar to the explicit
+        // version, so read the comment in them.
+
         jvm_method_hdl intent_mh
                 = {{0, "Landroid/content/Intent;"},
                    "setAction(Ljava/lang/String;)Landroid/content/Intent;"};
