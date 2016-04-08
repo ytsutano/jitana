@@ -65,43 +65,49 @@ namespace jitana {
         auto intent_mv = vm.find_method(intent_mh, true);
 
         const auto& mg = vm.methods();
-        bool sink_set_flag = false;
-        for (const auto& v : boost::make_iterator_range(vertices(mg))) {
-            const auto& ig = mg[v].insns;
-            r_hdl r_so;
-            r_hdl r_si;
-            register_idx sink_reg_idx;
-
-            for (const auto& iv : boost::adaptors::reverse(vertices(ig))) {
-                const auto& insn = ig[iv].insn;
-
-                if (sink_set_flag) {
-                    const auto* cs_insn = get<insn_const_string>(&insn);
-                    if (cs_insn && cs_insn->regs[0] == sink_reg_idx) {
-                        sink_set_flag = false;
-
-                        r_si.name = "L";
-                        r_si.name += cs_insn->const_val;
-                        r_si.name += ";";
-                        std::replace(begin(r_si.name), end(r_si.name), '.',
-                                     '/');
-                        r_si.id = -1;
-                        sos_sis.emplace_back(r_so, r_si);
-                    }
+        for (const auto& mv : boost::make_iterator_range(vertices(mg))) {
+            const auto& ig = mg[mv].insns;
+            for (const auto& iv : boost::make_iterator_range(vertices(ig))) {
+                const auto* invoke_insn = get<insn_invoke>(&ig[iv].insn);
+                if (!invoke_insn) {
+                    continue;
                 }
 
-                if (const auto* invoke_insn = get<insn_invoke>(&insn)) {
-                    auto imm_mv = vm.find_method(invoke_insn->const_val, true);
-                    if (imm_mv && *imm_mv == intent_mv) {
-                        r_so.name = mg[v].jvm_hdl.unique_name;
-                        r_so.id = mg[v].class_hdl.file_hdl.loader_hdl.idx;
-                        sink_set_flag = true;
-                        sink_reg_idx = invoke_insn->regs[2];
+                auto target_mv = vm.find_method(invoke_insn->const_val, true);
+                if (!target_mv || *target_mv != intent_mv) {
+                    continue;
+                }
+                auto class_name_reg = invoke_insn->regs[2];
+
+                for (const auto& e :
+                     boost::make_iterator_range(in_edges(iv, ig))) {
+                    using boost::type_erasure::any_cast;
+                    using df_edge_prop_t = insn_data_flow_edge_property;
+                    const auto* de = any_cast<const df_edge_prop_t*>(&ig[e]);
+                    if (!de || de->reg != class_name_reg) {
+                        continue;
                     }
+
+                    const auto& source_insn = ig[source(e, ig)].insn;
+                    const auto* cs_insn = get<insn_const_string>(&source_insn);
+                    if (!cs_insn) {
+                        continue;
+                    }
+
+                    r_hdl r_so;
+                    r_so.name = mg[mv].jvm_hdl.unique_name;
+                    r_so.id = mg[mv].class_hdl.file_hdl.loader_hdl.idx;
+
+                    r_hdl r_si;
+                    r_si.name = "L";
+                    r_si.name += cs_insn->const_val;
+                    r_si.name += ";";
+                    std::replace(begin(r_si.name), end(r_si.name), '.', '/');
+                    r_si.id = -1;
+
+                    sos_sis.emplace_back(r_so, r_si);
                 }
             }
-
-            sink_set_flag = false;
         }
 
         const auto& cg = vm.classes();
@@ -130,29 +136,39 @@ namespace jitana {
         auto intent_mv = vm.find_method(intent_mh, true);
 
         const auto& mg = vm.methods();
-        bool intent_set_flag = false;
-        register_idx sink_reg_intent_idx = register_idx::idx_unknown;
-        for (const auto& v : boost::make_iterator_range(vertices(mg))) {
-            const auto& ig = mg[v].insns;
-            for (const auto& iv : boost::adaptors::reverse(vertices(ig))) {
-                const auto& insn = ig[iv].insn;
+        for (const auto& mv : boost::make_iterator_range(vertices(mg))) {
+            const auto& ig = mg[mv].insns;
 
-                if (intent_set_flag) {
-                    const auto* cs_insn = get<insn_const_string>(&insn);
-                    if (cs_insn && cs_insn->regs[0] == sink_reg_intent_idx) {
-                        intent_set_flag = false;
-                        all_source_intents.emplace_back(
-                                mg[v].class_hdl.file_hdl.loader_hdl.idx,
-                                cs_insn->const_val);
-                    }
+            for (const auto& iv : boost::make_iterator_range(vertices(ig))) {
+                const auto* invoke_insn = get<insn_invoke>(&ig[iv].insn);
+                if (!invoke_insn) {
+                    continue;
                 }
 
-                if (const auto* invoke_insn = get<insn_invoke>(&insn)) {
-                    auto imm = vm.find_method(invoke_insn->const_val, true);
-                    if (imm && *imm == intent_mv) {
-                        intent_set_flag = true;
-                        sink_reg_intent_idx = invoke_insn->regs[1];
+                auto target_mv = vm.find_method(invoke_insn->const_val, true);
+                if (!target_mv || *target_mv != intent_mv) {
+                    continue;
+                }
+                auto action_string_reg = invoke_insn->regs[1];
+
+                for (const auto& e :
+                     boost::make_iterator_range(in_edges(iv, ig))) {
+                    using boost::type_erasure::any_cast;
+                    using df_edge_prop_t = insn_data_flow_edge_property;
+                    const auto* de = any_cast<const df_edge_prop_t*>(&ig[e]);
+                    if (!de || de->reg != action_string_reg) {
+                        continue;
                     }
+
+                    const auto& source_insn = ig[source(e, ig)].insn;
+                    const auto* cs_insn = get<insn_const_string>(&source_insn);
+                    if (!cs_insn) {
+                        continue;
+                    }
+
+                    all_source_intents.emplace_back(
+                            mg[mv].class_hdl.file_hdl.loader_hdl.idx,
+                            cs_insn->const_val);
                 }
             }
         }
