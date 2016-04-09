@@ -149,43 +149,6 @@ namespace jitana {
         };
     }
 
-    struct no_const_val {
-        friend bool operator==(const no_const_val&, const no_const_val&)
-        {
-            return true;
-        }
-
-        friend bool operator!=(const no_const_val& x, const no_const_val& y)
-        {
-            return !(x == y);
-        }
-
-        friend bool operator<(const no_const_val&, const no_const_val&)
-        {
-            return false;
-        }
-
-        friend bool operator>(const no_const_val& x, const no_const_val& y)
-        {
-            return y < x;
-        }
-
-        friend bool operator<=(const no_const_val& x, const no_const_val& y)
-        {
-            return !(y < x);
-        }
-
-        friend bool operator>=(const no_const_val& x, const no_const_val& y)
-        {
-            return !(x < y);
-        }
-
-        friend std::ostream& operator<<(std::ostream& os, const no_const_val&)
-        {
-            return os;
-        }
-    };
-
     struct array_payload {
         size_t element_width;
         size_t size;
@@ -229,30 +192,30 @@ namespace jitana {
     };
 
     // clang-format off
-    struct insn_nop              : detail::insn_base<0, no_const_val  > { using insn_base::insn_base; };
-    struct insn_move             : detail::insn_base<2, no_const_val  > { using insn_base::insn_base; };
-    struct insn_return           : detail::insn_base<1, no_const_val  > { using insn_base::insn_base; };
+    struct insn_nop              : detail::insn_base<0, boost::blank  > { using insn_base::insn_base; };
+    struct insn_move             : detail::insn_base<2, boost::blank  > { using insn_base::insn_base; };
+    struct insn_return           : detail::insn_base<1, boost::blank  > { using insn_base::insn_base; };
     struct insn_const            : detail::insn_base<1, int32_t       > { using insn_base::insn_base; };
     struct insn_const_wide       : detail::insn_base<1, int64_t       > { using insn_base::insn_base; };
     struct insn_const_string     : detail::insn_base<1, std::string   > { using insn_base::insn_base; };
     struct insn_const_class      : detail::insn_base<1, dex_type_hdl  > { using insn_base::insn_base; };
-    struct insn_monitor_enter    : detail::insn_base<1, no_const_val  > { using insn_base::insn_base; };
-    struct insn_monitor_exit     : detail::insn_base<1, no_const_val  > { using insn_base::insn_base; };
+    struct insn_monitor_enter    : detail::insn_base<1, boost::blank  > { using insn_base::insn_base; };
+    struct insn_monitor_exit     : detail::insn_base<1, boost::blank  > { using insn_base::insn_base; };
     struct insn_check_cast       : detail::insn_base<1, dex_type_hdl  > { using insn_base::insn_base; };
     struct insn_instance_of      : detail::insn_base<2, dex_type_hdl  > { using insn_base::insn_base; };
-    struct insn_array_length     : detail::insn_base<2, no_const_val  > { using insn_base::insn_base; };
+    struct insn_array_length     : detail::insn_base<2, boost::blank  > { using insn_base::insn_base; };
     struct insn_new_instance     : detail::insn_base<1, dex_type_hdl  > { using insn_base::insn_base; };
     struct insn_new_array        : detail::insn_base<2, dex_type_hdl  > { using insn_base::insn_base; };
     struct insn_filled_new_array : detail::insn_base<5, dex_type_hdl  > { using insn_base::insn_base; };
     struct insn_fill_array_data  : detail::insn_base<1, array_payload > { using insn_base::insn_base; };
-    struct insn_throw            : detail::insn_base<1, no_const_val  > { using insn_base::insn_base; };
+    struct insn_throw            : detail::insn_base<1, boost::blank  > { using insn_base::insn_base; };
     struct insn_goto             : detail::insn_base<0, int32_t       > { using insn_base::insn_base; };
-    struct insn_switch           : detail::insn_base<1, no_const_val  > { using insn_base::insn_base; };
-    struct insn_cmp              : detail::insn_base<3, no_const_val  > { using insn_base::insn_base; };
-    struct insn_if               : detail::insn_base<2, no_const_val  > { using insn_base::insn_base; };
-    struct insn_if_z             : detail::insn_base<1, no_const_val  > { using insn_base::insn_base; };
-    struct insn_aget             : detail::insn_base<3, no_const_val  > { using insn_base::insn_base; };
-    struct insn_aput             : detail::insn_base<3, no_const_val  > { using insn_base::insn_base; };
+    struct insn_switch           : detail::insn_base<1, boost::blank  > { using insn_base::insn_base; };
+    struct insn_cmp              : detail::insn_base<3, boost::blank  > { using insn_base::insn_base; };
+    struct insn_if               : detail::insn_base<2, boost::blank  > { using insn_base::insn_base; };
+    struct insn_if_z             : detail::insn_base<1, boost::blank  > { using insn_base::insn_base; };
+    struct insn_aget             : detail::insn_base<3, boost::blank  > { using insn_base::insn_base; };
+    struct insn_aput             : detail::insn_base<3, boost::blank  > { using insn_base::insn_base; };
     struct insn_iget             : detail::insn_base<2, dex_field_hdl > { using insn_base::insn_base; };
     struct insn_iget_quick       : detail::insn_base<2, uint16_t      > { using insn_base::insn_base; };
     struct insn_iput             : detail::insn_base<2, dex_field_hdl > { using insn_base::insn_base; };
@@ -261,13 +224,13 @@ namespace jitana {
     struct insn_sput             : detail::insn_base<1, dex_field_hdl > { using insn_base::insn_base; };
     struct insn_invoke           : detail::insn_base<5, dex_method_hdl> { using insn_base::insn_base; };
     struct insn_invoke_quick     : detail::insn_base<5, uint16_t      > { using insn_base::insn_base; };
-    struct insn_unary_arith_op   : detail::insn_base<2, no_const_val  > { using insn_base::insn_base; };
-    struct insn_binary_arith_op  : detail::insn_base<3, no_const_val  > { using insn_base::insn_base; };
-    struct insn_aug_assign_op    : detail::insn_base<2, no_const_val  > { using insn_base::insn_base; };
+    struct insn_unary_arith_op   : detail::insn_base<2, boost::blank  > { using insn_base::insn_base; };
+    struct insn_binary_arith_op  : detail::insn_base<3, boost::blank  > { using insn_base::insn_base; };
+    struct insn_aug_assign_op    : detail::insn_base<2, boost::blank  > { using insn_base::insn_base; };
     struct insn_const_arith_op   : detail::insn_base<2, int16_t       > { using insn_base::insn_base; };
 
-    struct insn_entry : detail::insn_base<5, no_const_val> { using insn_base::insn_base; };
-    struct insn_exit  : detail::insn_base<1, no_const_val> { using insn_base::insn_base; };
+    struct insn_entry : detail::insn_base<5, boost::blank> { using insn_base::insn_base; };
+    struct insn_exit  : detail::insn_base<1, boost::blank> { using insn_base::insn_base; };
     // clang-format on
 
     inline std::ostream& operator<<(std::ostream& os, const insn_entry& x)
