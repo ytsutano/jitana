@@ -12,8 +12,12 @@ pull_and_extract() {
         cp "apks/$1" "apks-extracted/$1"
     else
         # APK/JAR file: extract using apktool.
-        apktool decode --force --no-src -o "apks-extracted/$1" "apks/$1"
-        dexdump -d "apks-extracted/$1/classes.dex" > "apks-extracted/$1/classes.txt"
+        EXTRACTED="apks-extracted/$1"
+        apktool decode --force --no-src -o $EXTRACTED "apks/$1"
+        find "$EXTRACTED" \
+            ! \( -name "$1" -o -name '*.dex' -o -name '*.xml' \) -prune \
+            -exec rm -rf "{}" \;
+        dexdump -d "$EXTRACTED/classes.dex" > "$EXTRACTED/classes.txt"
     fi
 }
 
