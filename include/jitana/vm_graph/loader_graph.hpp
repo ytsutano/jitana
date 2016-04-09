@@ -18,6 +18,7 @@
 #define JITANA_LOADER_GRAPH_HPP
 
 #include "jitana/vm_core/class_loader.hpp"
+#include "jitana/vm_core/apk_info.hpp"
 #include "jitana/vm_graph/graph_common.hpp"
 
 #include <iostream>
@@ -42,6 +43,7 @@ namespace jitana {
     /// A loader graph vertex property.
     struct loader_vertex_property {
         class_loader loader;
+        boost::variant<boost::blank, apk_info> info;
     };
 
     /// A loader graph edge property.

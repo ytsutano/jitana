@@ -53,6 +53,12 @@ namespace jitana {
         loader_vertex_descriptor add_loader(class_loader loader,
                                             const class_loader_hdl& parent_hdl);
 
+        /// Adds the APK directory as a class loader of the virtual machine with
+        /// the specified parent class loader.
+        loader_vertex_descriptor add_apk(const class_loader_hdl& hdl,
+                                         const std::string& apk_dir,
+                                         const class_loader_hdl& parent_hdl);
+
         /// Finds the class vertex that corresponds to the initializing JVM
         /// type handle.
         boost::optional<class_vertex_descriptor>

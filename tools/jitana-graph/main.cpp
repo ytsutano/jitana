@@ -52,12 +52,9 @@ void test_virtual_machine()
         vm.add_loader(loader);
     }
 
-    {
-        const auto& filenames = {"../../../dex/app/instagram_classes.dex"};
-        jitana::class_loader loader(22, "Instagram", begin(filenames),
-                                    end(filenames));
-        vm.add_loader(loader, 11);
-    }
+    std::string apk_root = "../../../dex/extracted/";
+
+    vm.add_apk(22, apk_root + "data@app@com.instagram.android-1.apk", 11);
 
     {
         const auto& filenames = {"../../../dex/app/test.dex"};
@@ -66,12 +63,8 @@ void test_virtual_machine()
         vm.add_loader(loader, 11);
     }
 
-    {
-        const auto& filenames = {"../../../dex/app/super_depth_classes.dex"};
-        jitana::class_loader loader(44, "SuperDepth", begin(filenames),
-                                    end(filenames));
-        vm.add_loader(loader, 11);
-    }
+    vm.add_apk(44, apk_root + "data@app@jp.bio100.android.superdepth-1.apk",
+               11);
 
     {
         const auto& filenames = {"../../../dex/small_tests/01/01.dex"};

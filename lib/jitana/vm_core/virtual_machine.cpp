@@ -43,6 +43,23 @@ virtual_machine::add_loader(class_loader loader,
     return v;
 }
 
+loader_vertex_descriptor
+virtual_machine::add_apk(const class_loader_hdl& hdl,
+                         const std::string& apk_dir,
+                         const class_loader_hdl& parent_hdl)
+{
+    apk_info info(apk_dir);
+
+    const auto& filenames = {apk_dir + "/classes.dex"};
+    class_loader loader(hdl, info.package_name(), begin(filenames),
+                        end(filenames));
+
+    auto v = add_loader(loader, parent_hdl);
+    loaders_[v].info = std::move(info);
+
+    return v;
+}
+
 boost::optional<class_vertex_descriptor>
 virtual_machine::find_class(const jvm_type_hdl& hdl, bool try_load)
 {
