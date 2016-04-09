@@ -12,19 +12,15 @@ for i in $(adb shell pm list packages -f | cut -d= -f 1 | cut -d ":" -f 2); do
     adb pull $i
 done
 
-IN_APK_ARR=($(ls *.apk))
-for f in "${IN_APK_ARR[@]}"; do
-    if [ "$f" != ${f/Google/} ] || [ "$f" = "framework-res.apk" ]; then
-        rm "$f"
-    else
-        file_name=${f/.apk/}
-        mkdir $file_name
-        unzip "$f" -d $file_name
-        aapt dump xmltree $f AndroidManifest.xml > $file_name/$file_name.manifest.xml
-        echo "$file_name" >> location.txt
-        rm "$f"
+for f in *.apk; do
+    if [[ "$f" != *"Google"* && "$f" != "framework-res.apk" ]]; then
+        out=${f/.apk/}
+        apktool decode --force --no-src -o "$out" "$f"
+        echo "$out" >> location.txt
     fi
 done
+
+rm -f *.apk
 
 cd ..
 

@@ -28,6 +28,7 @@
 
 #include "jitana/jitana.hpp"
 #include "jitana/analysis_graph/resource_sharing_graph.hpp"
+#include "jitana/algorithm/property_tree.hpp"
 
 #include <boost/graph/graphviz.hpp>
 #include <boost/range/adaptors.hpp>
@@ -258,32 +259,51 @@ namespace jitana {
     }
 
     inline void parse_manifest_load_intent(
-            class_loader_hdl loader_hdl, const std::string& aut_manifest_tree,
+            virtual_machine& vm, class_loader_hdl loader_hdl,
             std::vector<std::pair<class_loader_hdl, std::string>>&
                     all_si_intents)
     {
-        bool found_action = false;
+        const auto& lg = vm.loaders();
+        const auto& lv = find_loader_vertex(loader_hdl, lg);
+        if (!lv) {
+            return;
+        }
 
-        std::ifstream ifs(aut_manifest_tree);
-        std::string line;
-        while (std::getline(ifs, line)) {
-            if (found_action) {
-                auto pos = line.find("(Raw: \"");
-                if (pos != std::string::npos) {
-                    found_action = false;
+        const auto* info = get<apk_info>(&lg[*lv].info);
+        if (!info) {
+            return;
+        }
 
-                    auto s = line.substr(pos + 7);
-                    s.erase(std::find(begin(s), end(s), '"'), end(s));
-                    if (s != "android.intent.action.MAIN"
-                        && s != "android.intent.action.VIEW") {
-                        all_si_intents.emplace_back(loader_hdl, s);
+        namespace bpt = boost::property_tree;
+        auto handle_intent_filters = [&](const bpt::ptree& pt) {
+            for (const auto& x : child_elements(pt, "intent-filter")) {
+                for (const auto& y : child_elements(x.second, "action")) {
+                    const auto& name = y.second.get<std::string>(
+                            "<xmlattr>.android:name");
+                    if (name != "android.intent.action.MAIN"
+                        && name != "android.intent.action.VIEW") {
+                        all_si_intents.emplace_back(loader_hdl, name);
                     }
                 }
             }
+        };
 
-            if (line.find("E: action") != std::string::npos) {
-                found_action = true;
-            }
+        const auto& app_pt = info->manifest_ptree().get_child("application");
+
+        for (const auto& x : child_elements(app_pt, "activity")) {
+            handle_intent_filters(x.second);
+        }
+
+        for (const auto& x : child_elements(app_pt, "service")) {
+            handle_intent_filters(x.second);
+        }
+
+        for (const auto& x : child_elements(app_pt, "provider")) {
+            handle_intent_filters(x.second);
+        }
+
+        for (const auto& x : child_elements(app_pt, "receiver")) {
+            handle_intent_filters(x.second);
         }
     }
 }

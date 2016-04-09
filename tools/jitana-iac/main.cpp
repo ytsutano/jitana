@@ -63,17 +63,8 @@ void run_iac_analysis()
     while (std::getline(location_ifs, name)) {
         jitana::app_names.push_back(name);
 
-        std::string dir = "extracted/" + name + "/";
-        std::string manifest = dir + name + ".manifest.xml";
-        jitana::parse_manifest_load_intent(loader_idx, manifest,
-                                           all_sink_intents);
-
-        {
-            const auto& filenames = {dir + "classes.dex"};
-            jitana::class_loader loader(loader_idx, name, begin(filenames),
-                                        end(filenames));
-            vm.add_loader(loader, 0);
-        }
+        vm.add_apk(loader_idx, "extracted/" + name, 0);
+        jitana::parse_manifest_load_intent(vm, loader_idx, all_sink_intents);
 
         vm.load_all_classes(loader_idx);
         std::cout << "Loaded Successfully: " << loader_idx << " " << name
