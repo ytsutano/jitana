@@ -36,20 +36,23 @@ adb forward --remove-all && adb -d forward tcp:6100 jdwp:$JDWP_PORT
 # rm -rf output/insn/*.dot
 mkdir -p output/insn
 
-# ./jitana-travis; exit
-./jitana-travis &
-JITANA_PID=$!
+if [[ "$1" == "monkey" ]]; then
+    ./jitana-travis &
+    JITANA_PID=$!
 
-sleep 5
+    sleep 5
 
-# Start Monkey.
-echo "=== Monky: started ============================"
-time adb shell monkey -p ${COMPONENT%%/*} 3000
-echo "=== Monky: stopped ============================"
+    # Start Monkey.
+    echo "=== Monky: started ============================"
+    time adb shell monkey -p ${COMPONENT%%/*} 3000
+    echo "=== Monky: stopped ============================"
 
-# Kill Jitana.
-echo "Killing Jitana in 5 seconds..."
-sleep 5
-kill -INT $JITANA_PID
-wait
-echo "Done."
+    # Kill Jitana.
+    echo "Killing Jitana in 5 seconds..."
+    sleep 5
+    kill -INT $JITANA_PID
+    wait
+    echo "Done."
+else
+    ./jitana-travis
+fi
