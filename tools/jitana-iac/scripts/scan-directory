@@ -16,8 +16,8 @@ cd extracted
 for f in *.apk; do
     if [[ "$f" != *"Google"* && "$f" != "framework-res.apk" ]]; then
         out=${f/.apk/}
-        apktool decode --force --no-src -o "$out" "$f"
-        echo "$out" >> location.txt
+        apktool decode --force --no-src -o "$out" "$f" \
+            && echo "$out" >> location.txt
     fi
 done
 
@@ -35,9 +35,7 @@ END_JITANA_IAC=$(date +%s)
 DIFF_JITANA_IAC=$(($END_JITANA_IAC - $START_JITANA_IAC))
 DIFF_TOTAL=$(($END_JITANA_IAC - $START_TOTAL))
 
-RSG=output/resource_sharing_graph.dot
-RSG_SIMPLIFIED=output/resource_sharing_graph_simplified.dot
-(head -n 3 $RSG && tail -n +4 $RSG | sort) | uniq > $RSG_SIMPLIFIED
+./simplify-dot
 
 echo "$DIFF_PRE_PROCESS seconds for preprocessing"
 echo "$DIFF_JITANA_IAC seconds for jitana-iac"

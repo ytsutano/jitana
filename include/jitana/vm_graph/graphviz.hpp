@@ -62,7 +62,7 @@ namespace jitana {
             os << "]";
         };
 
-        auto gprop_writer = [&](std::ostream& os) { os << "rankdir=RL;"; };
+        auto gprop_writer = [&](std::ostream& os) { os << "rankdir=RL;\n"; };
 
         write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
     }

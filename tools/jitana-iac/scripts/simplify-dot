@@ -1,0 +1,9 @@
+#!/bin/bash
+
+RSG=output/intent_graph.dot
+RSG_SIMPLIFIED=output/intent_graph_simplified.dot
+
+(head -n 2 $RSG && tail -n +4 $RSG | sed 's/ \[label=.*, / \[/g' | sort) \
+    | uniq | sed 's/rankdir=RL/rankdir=TD/g' \
+    | sed 's/|extracted.*\\l//g' \
+    | unflatten -c 5 > $RSG_SIMPLIFIED

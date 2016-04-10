@@ -73,10 +73,9 @@ add_library(jitana
     include/jitana/algorithm/unique_sort.hpp
     include/jitana/analysis/call_graph.hpp
     include/jitana/analysis/data_flow.hpp
-    include/jitana/analysis/resource_sharing.hpp
+    include/jitana/analysis/intent_flow.hpp
     include/jitana/analysis_graph/contextual_call_graph.hpp
     include/jitana/analysis_graph/pointer_assignment_graph.hpp
-    include/jitana/analysis_graph/resource_sharing_graph.hpp
     include/jitana/vm_core/access_flags.hpp
     include/jitana/vm_core/class_loader.hpp
     include/jitana/vm_core/dex_file.hpp

@@ -27,13 +27,7 @@
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
 #include <jitana/analysis/data_flow.hpp>
-#include <jitana/analysis/resource_sharing.hpp>
-
-static std::vector<std::pair<jitana::r_hdl, jitana::r_hdl>> so_si;
-static std::vector<std::pair<jitana::class_loader_hdl, std::string>>
-        all_sink_intents;
-static std::vector<std::pair<jitana::class_loader_hdl, std::string>>
-        all_source_intents;
+#include <jitana/analysis/intent_flow.hpp>
 
 void write_graphs(const jitana::virtual_machine& vm);
 
@@ -57,34 +51,29 @@ void run_iac_analysis()
         vm.add_loader(loader);
     }
 
-    int loader_idx = 1;
     std::ifstream location_ifs("extracted/location.txt");
     std::string name;
-    while (std::getline(location_ifs, name)) {
-        jitana::app_names.push_back(name);
-
+    for (int loader_idx = 1; std::getline(location_ifs, name); ++loader_idx) {
+        std::cout << "Loading " << loader_idx << " " << name << "..."
+                  << std::endl;
         vm.add_apk(loader_idx, "extracted/" + name, 0);
-        jitana::parse_manifest_load_intent(vm, loader_idx, all_sink_intents);
-
         vm.load_all_classes(loader_idx);
-        std::cout << "Loaded Successfully: " << loader_idx << " " << name
-                  << "\n";
-
-        ++loader_idx;
     }
 
     // Compute the call graph.
+    std::cout << "Computing the call graph..." << std::endl;
     jitana::add_call_graph_edges(vm);
 
     // Compute the data-flow.
+    std::cout << "Computing the data-flow..." << std::endl;
     std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
                   [&](const jitana::method_vertex_descriptor& v) {
                       add_data_flow_edges(vm.methods()[v].insns);
                   });
 
-    // Create a resource sharing graph (kind of).
-    jitana::add_resource_graph_edges_implicit(vm, all_source_intents);
-    jitana::add_resource_graph_edges_explicit(vm, so_si);
+    // Compute the intent-flow edges.
+    std::cout << "Computing the intent-flow..." << std::endl;
+    jitana::add_intent_flow_edges(vm);
 
     std::cout << "Writing graphs..." << std::endl;
     write_graphs(vm);
@@ -98,17 +87,19 @@ void run_iac_analysis()
 void write_graphs(const jitana::virtual_machine& vm)
 {
     {
-        std::ofstream ofs("output/resource_sharing_graph.dot");
-
-        jitana::resource_sharing_graph g;
-        jitana::write_graphviz_resource_sharing_graph_implicit(
-                all_source_intents, all_sink_intents, g);
-        jitana::write_graphviz_resource_sharing_graph_explicit(ofs, so_si, g);
+        std::ofstream ofs("output/loader_graph.dot");
+        auto g = jitana::
+                make_edge_filtered_graph<jitana::loader_parent_edge_property>(
+                        vm.loaders());
+        write_graphviz_loader_graph(ofs, g);
     }
 
     {
-        std::ofstream ofs("output/loader_graph.dot");
-        write_graphviz_loader_graph(ofs, vm.loaders());
+        std::ofstream ofs("output/intent_graph.dot");
+        auto g = jitana::
+                make_edge_filtered_graph<jitana::intent_flow_edge_property>(
+                        vm.loaders());
+        write_graphviz_loader_graph(ofs, g);
     }
 
     {
