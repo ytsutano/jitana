@@ -54,6 +54,17 @@ namespace jitana {
         add_explicit_intent_flow_edges(vm);
         add_implicit_intent_flow_edges(vm);
     }
+
+    inline void
+    add_explicit_intent_flow_edges_from_strings(virtual_machine& vm);
+    inline void
+    add_implicit_intent_flow_edges_from_strings(virtual_machine& vm);
+
+    inline void add_intent_flow_edges_from_strings(virtual_machine& vm)
+    {
+        add_explicit_intent_flow_edges_from_strings(vm);
+        add_implicit_intent_flow_edges_from_strings(vm);
+    }
 }
 
 namespace jitana {
@@ -182,6 +193,37 @@ namespace jitana {
         }
     }
 
+    inline void add_explicit_intent_flow_edges_from_strings(virtual_machine& vm)
+    {
+        auto intent_handlers = detail::compute_explicit_intent_handlers(vm);
+
+        auto& lg = vm.loaders();
+        const auto& mg = vm.methods();
+
+        for (const auto& mv : boost::make_iterator_range(vertices(mg))) {
+            const auto& ig = mg[mv].insns;
+
+            for (const auto& iv : boost::make_iterator_range(vertices(ig))) {
+                const auto* cs_insn = get<insn_const_string>(&ig[iv].insn);
+                if (!cs_insn) {
+                    continue;
+                }
+
+                auto it = intent_handlers.find(cs_insn->const_val);
+                if (it != end(intent_handlers)) {
+                    intent_flow_edge_property prop;
+                    prop.kind = intent_flow_edge_property::explicit_intent;
+                    prop.description = cs_insn->const_val;
+                    auto lv = *find_loader_vertex(
+                            mg[mv].hdl.file_hdl.loader_hdl, lg);
+                    for (const auto& target_lv : it->second) {
+                        add_edge(lv, target_lv, prop, lg);
+                    }
+                }
+            }
+        }
+    }
+
     namespace detail {
         inline auto compute_implicit_intent_handlers(virtual_machine& vm)
         {
@@ -288,6 +330,37 @@ namespace jitana {
                         for (const auto& target_lv : it->second) {
                             add_edge(lv, target_lv, prop, lg);
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    inline void add_implicit_intent_flow_edges_from_strings(virtual_machine& vm)
+    {
+        auto intent_handlers = detail::compute_implicit_intent_handlers(vm);
+
+        auto& lg = vm.loaders();
+        const auto& mg = vm.methods();
+
+        for (const auto& mv : boost::make_iterator_range(vertices(mg))) {
+            const auto& ig = mg[mv].insns;
+
+            for (const auto& iv : boost::make_iterator_range(vertices(ig))) {
+                const auto* cs_insn = get<insn_const_string>(&ig[iv].insn);
+                if (!cs_insn) {
+                    continue;
+                }
+
+                auto it = intent_handlers.find(cs_insn->const_val);
+                if (it != end(intent_handlers)) {
+                    intent_flow_edge_property prop;
+                    prop.kind = intent_flow_edge_property::implicit_intent;
+                    prop.description = cs_insn->const_val;
+                    auto lv = *find_loader_vertex(
+                            mg[mv].hdl.file_hdl.loader_hdl, lg);
+                    for (const auto& target_lv : it->second) {
+                        add_edge(lv, target_lv, prop, lg);
                     }
                 }
             }

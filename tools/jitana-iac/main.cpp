@@ -73,7 +73,11 @@ void run_iac_analysis()
 
     // Compute the intent-flow edges.
     std::cout << "Computing the intent-flow..." << std::endl;
+#if 0
     jitana::add_intent_flow_edges(vm);
+#else
+    jitana::add_intent_flow_edges_from_strings(vm);
+#endif
 
     std::cout << "Writing graphs..." << std::endl;
     write_graphs(vm);
