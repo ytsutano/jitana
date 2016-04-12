@@ -38,10 +38,10 @@ namespace jitana {
         os << "label=" << boost::escape_dot_string(prop.description) << ", ";
         switch (prop.kind) {
         case intent_flow_edge_property::explicit_intent:
-            os << "color=red";
+            os << "fontcolor=red, color=red";
             break;
         case intent_flow_edge_property::implicit_intent:
-            os << "color=green";
+            os << "fontcolor=darkgreen, color=darkgreen";
             break;
         }
     }
