@@ -15,7 +15,7 @@
  */
 
 #include "jitana/analysis/points_to.hpp"
-#include "jitana/analysis/data_flow.hpp"
+#include "jitana/analysis/def_use.hpp"
 #include "jitana/algorithm/unique_sort.hpp"
 
 #include <vector>
@@ -124,7 +124,7 @@ namespace {
         dex_reg_hdl reg_hdl(d_.insn_hdl, reg.value);
 
         for (const auto& e : make_iterator_range(in_edges(d_.iv, *d_.ig))) {
-            using edge_prop_t = insn_data_flow_edge_property;
+            using edge_prop_t = insn_def_use_edge_property;
             const auto* de = any_cast<const edge_prop_t*>(&(*d_.ig)[e]);
             if (de != nullptr && de->reg == reg) {
                 reg_hdl.insn_hdl.idx = source(e, *d_.ig);

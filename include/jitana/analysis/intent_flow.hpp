@@ -165,7 +165,7 @@ namespace jitana {
                 for (const auto& e :
                      boost::make_iterator_range(in_edges(iv, ig))) {
                     using boost::type_erasure::any_cast;
-                    using df_edge_prop_t = insn_data_flow_edge_property;
+                    using df_edge_prop_t = insn_def_use_edge_property;
                     const auto* de = any_cast<const df_edge_prop_t*>(&ig[e]);
                     if (!de || de->reg != class_name_reg) {
                         continue;
@@ -308,7 +308,7 @@ namespace jitana {
                 for (const auto& e :
                      boost::make_iterator_range(in_edges(iv, ig))) {
                     using boost::type_erasure::any_cast;
-                    using df_edge_prop_t = insn_data_flow_edge_property;
+                    using df_edge_prop_t = insn_def_use_edge_property;
                     const auto* de = any_cast<const df_edge_prop_t*>(&ig[e]);
                     if (!de || de->reg != action_string_reg) {
                         continue;

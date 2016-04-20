@@ -72,7 +72,7 @@ add_library(jitana
     include/jitana/algorithm/monotonic_dataflow.hpp
     include/jitana/algorithm/unique_sort.hpp
     include/jitana/analysis/call_graph.hpp
-    include/jitana/analysis/data_flow.hpp
+    include/jitana/analysis/def_use.hpp
     include/jitana/analysis/intent_flow.hpp
     include/jitana/analysis_graph/contextual_call_graph.hpp
     include/jitana/analysis_graph/pointer_assignment_graph.hpp

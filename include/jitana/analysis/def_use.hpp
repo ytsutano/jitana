@@ -14,8 +14,8 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef JITANA_DATA_FLOW_HPP
-#define JITANA_DATA_FLOW_HPP
+#ifndef JITANA_DEF_USE_HPP
+#define JITANA_DEF_USE_HPP
 
 #include "jitana/vm_core/virtual_machine.hpp"
 #include "jitana/vm_core/insn_info.hpp"
@@ -31,18 +31,18 @@
 #include <boost/range/iterator_range.hpp>
 
 namespace jitana {
-    struct insn_data_flow_edge_property {
+    struct insn_def_use_edge_property {
         register_idx reg;
     };
 
     inline void print_graphviz_attr(std::ostream& os,
-                                    const insn_data_flow_edge_property& prop)
+                                    const insn_def_use_edge_property& prop)
     {
         os << "color=red, fontcolor=red";
         os << ", label=\"" << prop.reg << "\"";
     }
 
-    inline void add_data_flow_edges(insn_graph& g)
+    inline void add_def_use_edges(insn_graph& g)
     {
         if (num_vertices(g) == 0) {
             return;
@@ -90,13 +90,13 @@ namespace jitana {
         monotonic_dataflow(cfg, inset_map, outset_map, comb_op, flow_func);
 
         // Update the graph with the data flow information.
-        remove_edge_if(make_edge_type_pred<insn_data_flow_edge_property>(g), g);
+        remove_edge_if(make_edge_type_pred<insn_def_use_edge_property>(g), g);
         for (const auto& v : boost::make_iterator_range(vertices(g))) {
             for (const auto& e : inset_map[v]) {
                 if (e.first != v
                     && std::binary_search(begin(uses_map[v]), end(uses_map[v]),
                                           e.second)) {
-                    insn_data_flow_edge_property edge_prop;
+                    insn_def_use_edge_property edge_prop;
                     edge_prop.reg = e.second;
                     add_edge(e.first, v, edge_prop, g);
                 }

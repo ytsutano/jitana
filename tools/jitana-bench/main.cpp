@@ -28,7 +28,7 @@
 
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
-#include <jitana/analysis/data_flow.hpp>
+#include <jitana/analysis/def_use.hpp>
 #include <jitana/analysis/points_to.hpp>
 
 struct benchmark_data {
@@ -39,7 +39,7 @@ struct benchmark_data {
     long n_dex_insns;
     double t_loading = std::numeric_limits<double>::max();
     double t_call_graph = std::numeric_limits<double>::max();
-    double t_data_flow = std::numeric_limits<double>::max();
+    double t_def_use = std::numeric_limits<double>::max();
 };
 
 int setup_class_loaders(jitana::virtual_machine& vm)
@@ -128,20 +128,20 @@ void run_benchmarks(benchmark_data& bd, jitana::virtual_machine vm,
         bd.t_call_graph = std::min(bd.t_call_graph, duration.count() / 1000.0);
     }
 
-    // Compute the data-flow.
+    // Compute the def-use edges.
     {
         auto start = std::chrono::system_clock::now();
 
         std::for_each(vertices(vm.methods()).first,
                       vertices(vm.methods()).second,
                       [&](const jitana::method_vertex_descriptor& v) {
-                          add_data_flow_edges(vm.methods()[v].insns);
+                          add_def_use_edges(vm.methods()[v].insns);
                       });
 
         auto end = std::chrono::system_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
                 end - start);
-        bd.t_data_flow = std::min(bd.t_data_flow, duration.count() / 1000.0);
+        bd.t_def_use = std::min(bd.t_def_use, duration.count() / 1000.0);
     }
 
     bd.n_dex_insns = 0;
@@ -194,7 +194,7 @@ void run_benchmark()
         std::cout << bd.n_dex_insns << ",";
         std::cout << bd.t_loading << ",";
         std::cout << bd.t_call_graph << ",";
-        std::cout << bd.t_data_flow << std::endl;
+        std::cout << bd.t_def_use << std::endl;
     }
 }
 

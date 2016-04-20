@@ -26,7 +26,7 @@
 
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
-#include <jitana/analysis/data_flow.hpp>
+#include <jitana/analysis/def_use.hpp>
 #include <jitana/analysis/intent_flow.hpp>
 
 void write_graphs(const jitana::virtual_machine& vm);
@@ -64,11 +64,11 @@ void run_iac_analysis()
     std::cout << "Computing the call graph..." << std::endl;
     jitana::add_call_graph_edges(vm);
 
-    // Compute the data-flow.
-    std::cout << "Computing the data-flow..." << std::endl;
+    // Compute the def-use edges.
+    std::cout << "Computing the def-use edges..." << std::endl;
     std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
                   [&](const jitana::method_vertex_descriptor& v) {
-                      add_data_flow_edges(vm.methods()[v].insns);
+                      add_def_use_edges(vm.methods()[v].insns);
                   });
 
     // Compute the intent-flow edges.

@@ -270,10 +270,10 @@ label="\
     \l|\
     \l}"];
     //---------------------------------------------------------------------
-    insn_data_flow_edge_property [
-    URL="@ref jitana::insn_data_flow_edge_property"
+    insn_def_use_edge_property [
+    URL="@ref jitana::insn_def_use_edge_property"
     label="\
-    {insn_data_flow_edge_property\
+    {insn_def_use_edge_property\
     |\
     \l|\
     \l}"];
@@ -338,7 +338,7 @@ label="\
                 }
                 {
                     rank=same;
-                    insn_control_flow_edge_property -> insn_data_flow_edge_property;
+                    insn_control_flow_edge_property -> insn_def_use_edge_property;
                 }
                 insn;
 
@@ -368,7 +368,7 @@ label="\
     loader_edge_property -> loader_parent_edge_property;
     class_edge_property -> class_super_edge_property;
     method_edge_property -> method_super_edge_property, method_call_edge_property;
-    insn_edge_property -> insn_control_flow_edge_property, insn_data_flow_edge_property;
+    insn_edge_property -> insn_control_flow_edge_property, insn_def_use_edge_property;
 
 //-----------------------------------------------------------------------------
 

@@ -20,7 +20,7 @@
 
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
-#include <jitana/analysis/data_flow.hpp>
+#include <jitana/analysis/def_use.hpp>
 #include <jitana/analysis/points_to.hpp>
 
 BOOST_AUTO_TEST_CASE(points_to)
@@ -69,11 +69,11 @@ BOOST_AUTO_TEST_CASE(points_to)
         // Compute the call graph.
         jitana::add_call_graph_edges(vm);
 
-        // Compute the data-flow.
+        // Compute the def-use edges.
         std::for_each(vertices(vm.methods()).first,
                       vertices(vm.methods()).second,
                       [&](const jitana::method_vertex_descriptor& v) {
-                          add_data_flow_edges(vm.methods()[v].insns);
+                          add_def_use_edges(vm.methods()[v].insns);
                       });
 
         std::cout << "Making pointer assignment graph for " << mh << "...";
