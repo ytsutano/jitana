@@ -42,6 +42,44 @@ namespace jitana {
         os << ", label=\"" << prop.reg << "\"";
     }
 
+    template <typename CFG, typename SetMap, typename DefsMap>
+    inline void reaching_definitions(const CFG& cfg, SetMap& inset_map,
+                                     SetMap& outset_map,
+                                     const DefsMap& defs_map)
+    {
+        using set = typename SetMap::value_type;
+
+        auto flow_func
+                = [&](insn_vertex_descriptor v, const set& inset, set& outset) {
+                      // Propagate.
+                      outset = inset;
+
+                      // Kill.
+                      for (const auto& x : defs_map[v]) {
+                          auto e = std::remove_if(
+                                  begin(outset), end(outset),
+                                  [&](const auto& f) { return f.second == x; });
+                          outset.erase(e, end(outset));
+                      }
+
+                      // Gen.
+                      for (const auto& x : defs_map[v]) {
+                          outset.emplace_back(v, x);
+                      }
+                      unique_sort(outset);
+                  };
+
+        auto comb_op = [](set& x, const set& y) {
+            // Apply in-place union.
+            set temp;
+            std::set_union(begin(x), end(x), begin(y), end(y),
+                           std::back_inserter(temp));
+            x = temp;
+        };
+
+        monotonic_dataflow(cfg, inset_map, outset_map, comb_op, flow_func);
+    }
+
     inline void add_def_use_edges(insn_graph& g)
     {
         if (num_vertices(g) == 0) {
@@ -56,40 +94,16 @@ namespace jitana {
             uses_map[v] = uses(g[v].insn);
         }
 
+        // Compute the reching definitions from the CFG and defs_map.
+        auto cfg = make_edge_filtered_graph<insn_control_flow_edge_property>(g);
         using elem = std::pair<insn_vertex_descriptor, register_idx>;
         using set = std::vector<elem>;
-        auto flow_func
-                = [&](insn_vertex_descriptor v, const set& inset, set& outset) {
-                      // Propagate.
-                      outset = inset;
-
-                      // Kill.
-                      for (const auto& x : defs_map[v]) {
-                          auto e = std::remove_if(
-                                  begin(outset), end(outset),
-                                  [&](const elem& f) { return f.second == x; });
-                          outset.erase(e, end(outset));
-                      }
-
-                      // Gen.
-                      for (const auto& x : defs_map[v]) {
-                          outset.emplace_back(v, x);
-                      }
-                      unique_sort(outset);
-                  };
-        auto comb_op = [](set& x, const set& y) {
-            // Apply in-place union.
-            set temp;
-            std::set_union(begin(x), end(x), begin(y), end(y),
-                           std::back_inserter(temp));
-            x = temp;
-        };
-        auto cfg = make_edge_filtered_graph<insn_control_flow_edge_property>(g);
         std::vector<set> inset_map(num_vertices(g));
         std::vector<set> outset_map(num_vertices(g));
-        monotonic_dataflow(cfg, inset_map, outset_map, comb_op, flow_func);
+        reaching_definitions(cfg, inset_map, outset_map, defs_map);
 
-        // Update the graph with the data flow information.
+        // Add def-use edges using the use_map and the result from the reaching
+        // definitions.
         remove_edge_if(make_edge_type_pred<insn_def_use_edge_property>(g), g);
         for (const auto& v : boost::make_iterator_range(vertices(g))) {
             for (const auto& e : inset_map[v]) {
