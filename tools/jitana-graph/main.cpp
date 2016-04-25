@@ -28,6 +28,7 @@
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
 #include <jitana/analysis/def_use.hpp>
+#include <jitana/analysis/exception_flow.hpp>
 #include <jitana/analysis/points_to.hpp>
 
 void write_graphs(jitana::virtual_machine& vm);
@@ -165,6 +166,12 @@ void test_virtual_machine()
 
     // Compute the call graph.
     jitana::add_call_graph_edges(vm);
+
+    // Compute the exception flow edges.
+    std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
+                  [&](const jitana::method_vertex_descriptor& v) {
+                      add_exception_flow_edges(vm, vm.methods()[v].insns);
+                  });
 
     // Compute the def-use edges.
     std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,

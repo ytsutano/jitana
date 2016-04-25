@@ -356,31 +356,6 @@ namespace jitana {
             os << "\\n";
             os << gprop.jvm_hdl.type_hdl.descriptor << "\n"
                << gprop.jvm_hdl.unique_name << "\";\n";
-
-            // Print exeception handlers.
-            for (const auto& tc : gprop.try_catches) {
-                auto print_try_block_seq = [&]() {
-                    for (auto v = tc.first;; ++v) {
-                        os << v;
-                        if (v == tc.last)
-                            break;
-                        os << ", ";
-                    }
-                };
-
-                for (const auto& h : tc.hdls) {
-                    print_try_block_seq();
-                    os << " -> " << h.second;
-                    os << " [label=\"" << h.first
-                       << "\", color=darkgreen, style=dotted];\n";
-                }
-
-                if (tc.has_catch_all) {
-                    print_try_block_seq();
-                    os << " -> " << tc.catch_all;
-                    os << " [color=darkgreen, style=dotted];\n";
-                }
-            }
         };
 
         write_graphviz(os, g, prop_writer, eprop_writer, gprop_writer);
