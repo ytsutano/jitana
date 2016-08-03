@@ -92,6 +92,7 @@ add_library(jitana
     include/jitana/vm_graph/graphviz.hpp
     include/jitana/vm_graph/graph_common.hpp
     include/jitana/vm_graph/insn_graph.hpp
+    lib/jitana/analysis/cha_call_graph.cpp
     lib/jitana/analysis/points_to.cpp
     lib/jitana/util/jdwp.cpp
     lib/jitana/vm_core/class_loader.cpp
