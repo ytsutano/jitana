@@ -68,6 +68,11 @@ namespace jitana {
         {
             return os << unsigned(x);
         }
+
+        friend size_t hash_value(const class_loader_hdl& hdl)
+        {
+            return static_cast<uint8_t>(hdl);
+        }
     };
 
     /// A handle to a DEX file.
@@ -114,6 +119,11 @@ namespace jitana {
         friend std::ostream& operator<<(std::ostream& os, const dex_file_hdl& x)
         {
             return os << unsigned(x.loader_hdl) << "_" << unsigned(x.idx);
+        }
+
+        friend size_t hash_value(const dex_file_hdl& hdl)
+        {
+            return static_cast<uint16_t>(hdl);
         }
     };
 
@@ -169,6 +179,11 @@ namespace jitana {
         friend std::ostream& operator<<(std::ostream& os, const dex_type_hdl& x)
         {
             return os << x.file_hdl << "_t" << x.idx;
+        }
+
+        friend size_t hash_value(const dex_type_hdl& hdl)
+        {
+            return static_cast<uint32_t>(hdl);
         }
     };
 
@@ -226,6 +241,11 @@ namespace jitana {
         {
             return os << x.file_hdl << "_m" << x.idx;
         }
+
+        friend size_t hash_value(const dex_method_hdl& hdl)
+        {
+            return static_cast<uint32_t>(hdl);
+        }
     };
 
     struct dex_field_hdl {
@@ -282,6 +302,11 @@ namespace jitana {
         {
             return os << x.file_hdl << "_f" << x.idx;
         }
+
+        friend size_t hash_value(const dex_field_hdl& hdl)
+        {
+            return static_cast<uint32_t>(hdl);
+        }
     };
 
     struct dex_insn_hdl {
@@ -337,11 +362,16 @@ namespace jitana {
         {
             return os << x.method_hdl << "_i" << x.idx;
         }
+
+        friend size_t hash_value(const dex_insn_hdl& hdl)
+        {
+            return static_cast<uint64_t>(hdl);
+        }
     };
 
     struct dex_reg_hdl {
         dex_insn_hdl insn_hdl;
-        uint16_t idx;
+        int16_t idx;
 
         dex_reg_hdl()
         {
@@ -391,6 +421,11 @@ namespace jitana {
         {
             return os << x.insn_hdl << "_" << register_idx(int16_t(x.idx));
         }
+
+        friend size_t hash_value(const dex_reg_hdl& hdl)
+        {
+            return static_cast<uint64_t>(hdl);
+        }
     };
 
     struct jvm_type_hdl {
@@ -426,6 +461,12 @@ namespace jitana {
         {
             return os << unsigned(x.loader_hdl) << ":" << x.descriptor;
         }
+
+        friend size_t hash_value(const jvm_type_hdl& hdl)
+        {
+            return std::hash<std::string>()(hdl.descriptor)
+                    ^ unsigned(hdl.loader_hdl);
+        }
     };
 
     struct jvm_method_hdl {
@@ -457,6 +498,13 @@ namespace jitana {
         {
             return os << x.type_hdl << "." << x.unique_name;
         }
+
+        friend size_t hash_value(const jvm_method_hdl& hdl)
+        {
+            // TODO: come up with a better hash function.
+            return hash_value(hdl.type_hdl)
+                    ^ std::hash<std::string>()(hdl.unique_name);
+        }
     };
 
     struct jvm_field_hdl {
@@ -482,6 +530,13 @@ namespace jitana {
         {
             return os << x.type_hdl << "." << x.unique_name;
         }
+
+        friend size_t hash_value(const jvm_field_hdl& hdl)
+        {
+            // TODO: come up with a better hash function.
+            return hash_value(hdl.type_hdl)
+                    ^ std::hash<std::string>()(hdl.unique_name);
+        }
     };
 }
 
@@ -490,7 +545,7 @@ namespace std {
     struct hash<jitana::class_loader_hdl> {
         size_t operator()(const jitana::class_loader_hdl& hdl) const
         {
-            return static_cast<uint8_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -498,7 +553,7 @@ namespace std {
     struct hash<jitana::dex_file_hdl> {
         size_t operator()(const jitana::dex_file_hdl& hdl) const
         {
-            return static_cast<uint16_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -506,7 +561,7 @@ namespace std {
     struct hash<jitana::dex_type_hdl> {
         size_t operator()(const jitana::dex_type_hdl& hdl) const
         {
-            return static_cast<uint32_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -514,7 +569,7 @@ namespace std {
     struct hash<jitana::dex_method_hdl> {
         size_t operator()(const jitana::dex_method_hdl& hdl) const
         {
-            return static_cast<uint32_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -522,7 +577,7 @@ namespace std {
     struct hash<jitana::dex_field_hdl> {
         size_t operator()(const jitana::dex_field_hdl& hdl) const
         {
-            return static_cast<uint32_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -530,7 +585,7 @@ namespace std {
     struct hash<jitana::dex_insn_hdl> {
         size_t operator()(const jitana::dex_insn_hdl& hdl) const
         {
-            return static_cast<uint64_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -538,7 +593,7 @@ namespace std {
     struct hash<jitana::dex_reg_hdl> {
         size_t operator()(const jitana::dex_reg_hdl& hdl) const
         {
-            return static_cast<uint64_t>(hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -546,8 +601,7 @@ namespace std {
     struct hash<jitana::jvm_type_hdl> {
         size_t operator()(const jitana::jvm_type_hdl& hdl) const
         {
-            return std::hash<std::string>()(hdl.descriptor)
-                    ^ unsigned(hdl.loader_hdl);
+            return hash_value(hdl);
         }
     };
 
@@ -555,9 +609,7 @@ namespace std {
     struct hash<jitana::jvm_method_hdl> {
         size_t operator()(const jitana::jvm_method_hdl& hdl) const
         {
-            // TODO: come up with a better hash function.
-            return std::hash<jitana::jvm_type_hdl>()(hdl.type_hdl)
-                    ^ std::hash<std::string>()(hdl.unique_name);
+            return hash_value(hdl);
         }
     };
 
@@ -565,9 +617,7 @@ namespace std {
     struct hash<jitana::jvm_field_hdl> {
         size_t operator()(const jitana::jvm_field_hdl& hdl) const
         {
-            // TODO: come up with a better hash function.
-            return std::hash<jitana::jvm_type_hdl>()(hdl.type_hdl)
-                    ^ std::hash<std::string>()(hdl.unique_name);
+            return hash_value(hdl);
         }
     };
 }

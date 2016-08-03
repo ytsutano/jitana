@@ -97,6 +97,23 @@ namespace jitana {
                 return result;
             }
 
+            friend std::vector<register_idx> regs_vec(const insn_base& x)
+            {
+                std::vector<register_idx> result;
+                const auto& regs = x.regs;
+                if (x.is_regs_range()) {
+                    result.resize(
+                            static_cast<int32_t>(regs.back() - regs.front()));
+                    std::iota(begin(result), end(result), regs.front());
+                }
+                else {
+                    std::copy_if(begin(regs), end(regs),
+                                 std::back_inserter(result),
+                                 [](const auto& v) { return v.valid(); });
+                }
+                return result;
+            }
+
             friend bool operator==(const insn_base& x, const insn_base& y)
             {
                 return std::tie(x.op, x.regs, x.const_val)
@@ -339,6 +356,22 @@ namespace jitana {
     inline boost::iterator_range<const register_idx*> regs(const insn& x)
     {
         return boost::apply_visitor(detail::extract_regs(), x);
+    }
+
+    namespace detail {
+        struct extract_regs_vec
+                : public boost::static_visitor<std::vector<register_idx>> {
+            template <typename T>
+            std::vector<register_idx> operator()(const T& x) const
+            {
+                return regs_vec(x);
+            }
+        };
+    }
+
+    inline std::vector<register_idx> regs_vec(const insn& x)
+    {
+        return boost::apply_visitor(detail::extract_regs_vec(), x);
     }
 
     namespace detail {
