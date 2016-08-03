@@ -30,8 +30,9 @@
 #include <jitana/analysis/def_use.hpp>
 #include <jitana/analysis/points_to.hpp>
 #include <jitana/analysis/ide.hpp>
+#include <jitana/analysis/cha_call_graph.hpp>
 
-void write_graphs(const jitana::virtual_machine& vm);
+void write_graphs(jitana::virtual_machine& vm);
 
 void test_virtual_machine()
 {
@@ -158,6 +159,21 @@ void test_virtual_machine()
                 boost::write_graphviz(ofs, ccg);
             }
         }
+
+        {
+            auto ccg = make_cha_call_graph(vm, {*mv});
+            auto lesg = make_labeled_exploded_super_graph(vm, ccg);
+
+            {
+                std::ofstream ofs("output/cha_ccg.dot");
+                jitana::write_graphviz_contextual_call_graph(ofs, ccg);
+            }
+
+            {
+                std::ofstream ofs("output/lesg.dot");
+                write_graphviz_labeled_exploded_super_graph(ofs, lesg);
+            }
+        }
     }
     else {
         throw std::runtime_error("failed to find the method");
@@ -181,7 +197,7 @@ void test_virtual_machine()
     write_graphs(vm);
 }
 
-void write_graphs(const jitana::virtual_machine& vm)
+void write_graphs(jitana::virtual_machine& vm)
 {
     {
         std::ofstream ofs("output/loader_graph.dot");

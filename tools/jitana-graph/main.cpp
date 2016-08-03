@@ -30,7 +30,7 @@
 #include <jitana/analysis/def_use.hpp>
 #include <jitana/analysis/points_to.hpp>
 
-void write_graphs(const jitana::virtual_machine& vm);
+void write_graphs(jitana::virtual_machine& vm);
 
 void test_virtual_machine()
 {
@@ -180,7 +180,7 @@ void test_virtual_machine()
     write_graphs(vm);
 }
 
-void write_graphs(const jitana::virtual_machine& vm)
+void write_graphs(jitana::virtual_machine& vm)
 {
     {
         std::ofstream ofs("output/loader_graph.dot");

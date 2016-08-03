@@ -276,7 +276,7 @@ namespace jitana {
     /// Writes an instruction graph to the stream in the Graphviz format.
     template <typename InsnGraph>
     inline void write_graphviz_insn_graph(std::ostream& os, const InsnGraph& g,
-                                          const virtual_machine* vm = nullptr)
+                                          virtual_machine* vm = nullptr)
     {
         auto prop_writer = [&](std::ostream& os, const auto& v) {
             if (is_pseudo(g[v].insn)) {
@@ -317,8 +317,14 @@ namespace jitana {
                 os << ",";
                 os << "shape=record";
                 if (auto* m = const_val<dex_method_hdl>(g[v].insn)) {
+                    dex_method_hdl mh = *m;
+                    if (vm) {
+                        if (auto mv = vm->find_method(mh, false)) {
+                            mh = vm->methods()[*mv].hdl;
+                        }
+                    }
                     os << ",";
-                    os << "URL=\"" << *m << ".dot\"";
+                    os << "URL=\"" << mh << ".dot\"";
                 }
                 if (block_head) {
                     os << ", color=red";
