@@ -27,7 +27,8 @@
 #include <jitana/jitana.hpp>
 #include <jitana/analysis/call_graph.hpp>
 #include <jitana/analysis/def_use.hpp>
-#include <jitana/analysis/intent_flow.hpp>
+#include <jitana/analysis/intent_flow_intraprocedural.hpp>
+#include <jitana/analysis/intent_flow_string.hpp>
 
 void write_graphs(const jitana::virtual_machine& vm);
 
@@ -74,9 +75,9 @@ void run_iac_analysis()
     // Compute the intent-flow edges.
     std::cout << "Computing the intent-flow..." << std::endl;
 #if 0
-    jitana::add_intent_flow_edges(vm);
+    jitana::add_intent_flow_edges_intraprocedural(vm);
 #else
-    jitana::add_intent_flow_edges_from_strings(vm);
+    jitana::add_intent_flow_edges_string(vm);
 #endif
 
     std::cout << "Writing graphs..." << std::endl;
