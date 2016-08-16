@@ -106,7 +106,7 @@ namespace jitana {
     struct string_propagation_insn_visitor
             : public boost::static_visitor<void> {
         template <typename T>
-        void operator()(const T& x) const
+        void operator()(const T& /*x*/) const
         {
             std::cout << "T\n";
         }
