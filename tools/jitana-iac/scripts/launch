@@ -1,0 +1,105 @@
+#!/bin/bash
+
+function usage()
+{
+    name=`basename $0`
+    echo "USAGE"
+    echo "    $name --path <path to a directory of APK files> --apktool"
+    echo "    $name --path <path to a directory of APK files>"
+    echo "    $name --device --apktool"
+    echo "    $name --device"
+    echo ""
+    echo "OPTIONS"
+    echo "    --apktool"
+    echo "            use ApkTool instead of unzip and binary XML parser."
+    echo ""
+    echo "    -d, --device"
+    echo "            Load APK files from a device connected."
+    echo ""
+    echo "    -p <path>, --path <path>"
+    echo "            Load APK files from a directory specified."
+    echo ""
+    echo "    -h, --help"
+    echo "            Display available options."
+    echo ""
+}
+
+if [[ $# -eq 0 ]]; then
+    usage
+    exit 1
+fi
+
+while [[ "$1" != "" ]]; do
+    case $1 in
+        --apktool )
+            use_apktool=true
+            ;;
+        -d | --device )
+            use_device=true
+            ;;
+        -p | --path )
+            shift
+            apk_dir=$1
+            ;;
+        -h | --help )
+            usage
+            exit
+            ;;
+        * )
+            usage
+            exit 1
+    esac
+    shift
+done
+
+START_TOTAL=$(date +%s)
+
+rm -rf extracted
+mkdir -p extracted
+
+# Copy APK files to extracted directory.
+if [[ "$use_device" = true ]]; then
+    cd extracted
+    for i in $(adb shell pm list packages -f | cut -d= -f 1 | cut -d ":" -f 2)
+    do
+        echo "Pulling $i:"
+        adb pull $i
+    done
+else
+    cp $apk_dir/* extracted
+    cd extracted
+fi
+
+# Extract.
+for f in *.apk; do
+    if [[ "$f" != *"Google"* && "$f" != "framework-res.apk" ]]; then
+        out=${f/.apk/}
+        if [[ "$use_apktool" = true ]]; then
+            apktool decode --force --no-src -o "$out" "$f" \
+                && echo "$out" >> location.txt
+        else
+            echo "Extracting $f..."
+            unzip -q "$f" -d "$out" && echo "$out" >> location.txt
+        fi
+    fi
+done
+
+rm -f *.apk
+
+cd ..
+
+END_PRE_PROCESS=$(date +%s)
+DIFF_PRE_PROCESS=$(($END_PRE_PROCESS - $START_TOTAL))
+
+START_JITANA_IAC=$(date +%s)
+./jitana-iac
+END_JITANA_IAC=$(date +%s)
+
+DIFF_JITANA_IAC=$(($END_JITANA_IAC - $START_JITANA_IAC))
+DIFF_TOTAL=$(($END_JITANA_IAC - $START_TOTAL))
+
+./simplify-dot
+
+echo "$DIFF_PRE_PROCESS seconds for preprocessing"
+echo "$DIFF_JITANA_IAC seconds for jitana-iac"
+echo "$DIFF_TOTAL seconds total"

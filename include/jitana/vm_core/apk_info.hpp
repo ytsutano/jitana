@@ -20,14 +20,42 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
+#include "jitana/util/axml_parser.hpp"
+
 namespace jitana {
     class apk_info {
     public:
         apk_info(const std::string& apk_dir)
         {
-            boost::property_tree::ptree pt;
-            read_xml(apk_dir + "/AndroidManifest.xml", pt);
+            namespace bpt = boost::property_tree;
+
+            const std::string xml_filename = apk_dir + "/AndroidManifest.xml";
+
+            // Load the manifest file into a property tree.
+            bpt::ptree pt;
+            try {
+                try {
+                    // First, try to read as a binary XML file.
+                    jitana::read_axml(xml_filename, pt);
+                }
+                catch (const jitana::axml_parser_magic_mismatched& e) {
+                    // Binary parser has faied: try to read it as a normal XML
+                    // file.
+                    bpt::read_xml(xml_filename, pt);
+                }
+            }
+            catch (const jitana::axml_parser_error& e) {
+                std::cerr << "binary parser failed: " << e.what() << "\n";
+            }
+            catch (const bpt::xml_parser::xml_parser_error& e) {
+                std::cerr << "XML parser failed: " << e.what() << "\n";
+            }
             manifest_pt_ = pt.get_child("manifest");
+
+            // Write the property tree to a XML file.
+            bpt::xml_writer_settings<std::string> settings(' ', 2);
+            write_xml(apk_dir + "/AndroidManifestDecoded.xml", pt,
+                      std::locale(), settings);
         }
 
         std::string package_name() const

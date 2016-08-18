@@ -73,11 +73,14 @@ add_library(jitana
     include/jitana/algorithm/unique_sort.hpp
     include/jitana/analysis/call_graph.hpp
     include/jitana/analysis/def_use.hpp
+    include/jitana/analysis/intent_flow.hpp
     include/jitana/analysis/intent_flow_intraprocedural.hpp
     include/jitana/analysis/intent_flow_string.hpp
-    include/jitana/analysis/intent_flow.hpp
     include/jitana/analysis_graph/contextual_call_graph.hpp
     include/jitana/analysis_graph/pointer_assignment_graph.hpp
+    include/jitana/util/axml_parser.hpp
+    include/jitana/util/jdwp.hpp
+    include/jitana/util/stream_reader.hpp
     include/jitana/vm_core/access_flags.hpp
     include/jitana/vm_core/class_loader.hpp
     include/jitana/vm_core/dex_file.hpp
@@ -96,6 +99,7 @@ add_library(jitana
     include/jitana/vm_graph/insn_graph.hpp
     lib/jitana/analysis/cha_call_graph.cpp
     lib/jitana/analysis/points_to.cpp
+    lib/jitana/util/axml_parser.cpp
     lib/jitana/util/jdwp.cpp
     lib/jitana/vm_core/class_loader.cpp
     lib/jitana/vm_core/dex_file.cpp
