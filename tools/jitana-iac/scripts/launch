@@ -79,7 +79,10 @@ for f in *.apk; do
                 && echo "$out" >> location.txt
         else
             echo "Extracting $f..."
-            unzip -q "$f" -d "$out" && echo "$out" >> location.txt
+            unzip -q "$f" -d "$out"
+            if  [ -a "$out/classes.dex" ]; then
+                echo "$out" >> location.txt
+            fi
         fi
     fi
 done
