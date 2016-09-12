@@ -49,6 +49,7 @@ namespace jitana {
         static constexpr uint16_t res_table_type_spec_type = 0x0202;
         static constexpr uint16_t res_table_library_type = 0x0203;
 
+    public:
         enum complex_unit {
             complex_unit_px = 0,
             complex_unit_dip = 1,
@@ -60,7 +61,6 @@ namespace jitana {
             complex_unit_fraction_parent = 1
         };
 
-    public:
         struct res_chunk_header {
             uint16_t type;
             uint16_t header_size;
@@ -187,7 +187,9 @@ namespace jitana {
                 // case type_string:
                 //     break;
                 case type_float:
-                    os << *reinterpret_cast<const float*>(&x.data);
+                    float f;
+                    std::memcpy(&f, &x.data, sizeof(f));
+                    os << f;
                     break;
                 case type_dimension:
                     print_complex(false);
