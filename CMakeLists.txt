@@ -68,43 +68,12 @@ add_custom_target(count
 # jitana library
 #-------------------------------------------------------------------------------
 
+file(GLOB_RECURSE Jitana_SRC_FILES
+    "include/*.hpp"
+    "lib/*.cpp"
+)
 add_library(jitana
-    include/jitana/algorithm/monotonic_dataflow.hpp
-    include/jitana/algorithm/unique_sort.hpp
-    include/jitana/analysis/call_graph.hpp
-    include/jitana/analysis/def_use.hpp
-    include/jitana/analysis/intent_flow.hpp
-    include/jitana/analysis/intent_flow_intraprocedural.hpp
-    include/jitana/analysis/intent_flow_string.hpp
-    include/jitana/analysis_graph/contextual_call_graph.hpp
-    include/jitana/analysis_graph/pointer_assignment_graph.hpp
-    include/jitana/util/axml_parser.hpp
-    include/jitana/util/jdwp.hpp
-    include/jitana/util/stream_reader.hpp
-    include/jitana/vm_core/access_flags.hpp
-    include/jitana/vm_core/class_loader.hpp
-    include/jitana/vm_core/dex_file.hpp
-    include/jitana/vm_core/dex_raw_types.hpp
-    include/jitana/vm_core/hdl.hpp
-    include/jitana/vm_core/idx.hpp
-    include/jitana/vm_core/insn.hpp
-    include/jitana/vm_core/insn_info.hpp
-    include/jitana/vm_core/opcode.hpp
-    include/jitana/vm_core/virtual_machine.hpp
-    include/jitana/vm_graph/class_graph.hpp
-    include/jitana/vm_graph/edge_filtered_graph.hpp
-    include/jitana/vm_graph/field_graph.hpp
-    include/jitana/vm_graph/graphviz.hpp
-    include/jitana/vm_graph/graph_common.hpp
-    include/jitana/vm_graph/insn_graph.hpp
-    lib/jitana/analysis/cha_call_graph.cpp
-    lib/jitana/analysis/points_to.cpp
-    lib/jitana/util/axml_parser.cpp
-    lib/jitana/util/jdwp.cpp
-    lib/jitana/vm_core/class_loader.cpp
-    lib/jitana/vm_core/dex_file.cpp
-    lib/jitana/vm_core/insn_info.cpp
-    lib/jitana/vm_core/virtual_machine.cpp
+    ${Jitana_SRC_FILES}
 )
 target_link_libraries(jitana
     ${Boost_LIBRARIES}
