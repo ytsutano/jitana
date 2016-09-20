@@ -133,8 +133,6 @@ namespace {
         }
     }
 
-    std::ofstream ccg_ofs("output/ccg.dot");
-
     inline void add_invoke_edges(points_to_algorithm_data& d_,
                                  method_vertex_descriptor mv,
                                  const insn_invoke& insn)
@@ -156,14 +154,6 @@ namespace {
         if (tgt_mvprop.access_flags & acc_abstract) {
             return;
         }
-
-        // lookup_ccg_vertex(tgt_mvprop.hdl, d_.ccg);
-        ccg_ofs << "\"" << d_.insn_hdl.method_hdl << "\"";
-        ccg_ofs << "->";
-        ccg_ofs << "\"" << tgt_mvprop.hdl << "\"";
-        ccg_ofs << "[label=\"";
-        ccg_ofs << d_.insn_hdl.idx;
-        ccg_ofs << "\"];\n";
 
         // Parameters.
         {
@@ -824,6 +814,27 @@ namespace {
             print_stats();
 #endif
 
+            // Update the CCG.
+            for (const auto& invoc : d_.visited) {
+                if (invoc.callsite == no_insn_hdl) {
+                    // No caller: ignore.
+                    continue;
+                }
+
+                const auto& mg = d_.vm.methods();
+                const auto& tgt_mvprop = mg[invoc.mv];
+                auto src_mv
+                        = *d_.vm.find_method(invoc.callsite.method_hdl, false);
+                auto src_iv = invoc.callsite.idx;
+                const auto& src_insn = mg[src_mv].insns[src_iv].insn;
+
+                ccg_edge_property eprop;
+                eprop.virtual_call = info(op(src_insn)).can_virtually_invoke();
+                eprop.caller_insn_vertex = src_iv;
+                add_edge(invoc.callsite.method_hdl, tgt_mvprop.hdl, eprop,
+                         d_.ccg);
+            }
+
             return true;
         }
 
@@ -1043,11 +1054,6 @@ namespace {
                 const auto& mg = d_.vm.methods();
                 const auto& mvprop = mg[mv];
                 const auto& ig = mvprop.insns;
-
-                ccg_ofs << "\"" << mvprop.hdl << "\"";
-                ccg_ofs << "[label=\"";
-                ccg_ofs << mvprop.jvm_hdl;
-                ccg_ofs << "\"]\n";
 
                 pag_insn_visitor vis(d_, invoc_queue);
                 for (auto iv : boost::make_iterator_range(vertices(ig))) {
