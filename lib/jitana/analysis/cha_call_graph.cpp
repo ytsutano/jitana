@@ -53,8 +53,8 @@ contextual_call_graph jitana::make_cha_call_graph(
         auto mv = worklist.front();
         worklist.pop();
 
-        std::cout << "-------------------------------------\n";
-        std::cout << mg[mv].jvm_hdl << "\n";
+        // std::cout << "-------------------------------------\n";
+        // std::cout << mg[mv].jvm_hdl << "\n";
 
         const auto& ig = mg[mv].insns;
 
@@ -68,7 +68,7 @@ contextual_call_graph jitana::make_cha_call_graph(
             eprop.virtual_call = info(op(*invoke_insn)).can_virtually_invoke();
             eprop.caller_insn_vertex = iv;
 
-            std::cout << *invoke_insn << "\n";
+            // std::cout << *invoke_insn << "\n";
             if (auto const_mv = vm.find_method(invoke_insn->const_val, true)) {
                 boost::vector_property_map<int> color_map(
                         static_cast<unsigned>(num_vertices(inheritance_mg)));

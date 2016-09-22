@@ -32,12 +32,117 @@
 #include <jitana/analysis/ide.hpp>
 #include <jitana/analysis/cha_call_graph.hpp>
 
-void write_graphs(jitana::virtual_machine& vm);
+void setup_class_loaders(jitana::virtual_machine& vm);
+void write_vm_graphs(jitana::virtual_machine& vm);
 
-void test_virtual_machine()
+void run_analysis()
 {
     jitana::virtual_machine vm;
 
+    setup_class_loaders(vm);
+
+    // Set the method handle of the entry point.
+    std::vector<jitana::jvm_method_hdl> mh_candidates;
+    mh_candidates.push_back({{77, "LTest;"}, "main([Ljava/lang/String;)V"});
+    mh_candidates.push_back(
+            {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
+             "onCreate(Landroid/os/Bundle;)V"});
+    mh_candidates.push_back(
+            {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
+             "onStart()V"});
+    mh_candidates.push_back(
+            {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
+             "onResume()V"});
+    mh_candidates.push_back(
+            {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
+             "onPause()V"});
+    mh_candidates.push_back(
+            {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
+             "onRestart()V"});
+    jitana::jvm_method_hdl mh = mh_candidates[1];
+
+    // Load the method and its dependencies.
+    auto mv = vm.find_method(mh, true);
+    if (!mv) {
+        throw std::runtime_error("failed to find the method");
+    }
+    vm.load_recursive(*mv);
+
+    // Compute the call graph.
+    jitana::add_call_graph_edges(vm);
+
+    // Compute the def-use edges.
+    std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
+                  [&](const jitana::method_vertex_descriptor& v) {
+                      add_def_use_edges(vm.methods()[v].insns);
+                  });
+
+    std::cout << "Entry point: " << mh << std::endl;
+
+    // Apply CHA analysis to generate CCG.
+    std::cout << "Running CHA..." << std::endl;
+    auto ccg_cha = make_cha_call_graph(vm, {*mv});
+
+    // Apply points-to analysis to generate CCG.
+    std::cout << "Running Points-to..." << std::endl;
+    jitana::pointer_assignment_graph pag;
+    jitana::contextual_call_graph ccg_pt;
+    jitana::update_points_to_graphs(pag, ccg_pt, vm, *mv, true);
+
+    // Generate labeled exploded super graph based on CHA.
+    std::cout << "Making CHA-based LESG..." << std::endl;
+    auto lesg_cha = make_labeled_exploded_super_graph(vm, ccg_cha);
+
+    // Generate labeled exploded super graph based on points-to.
+    std::cout << "Making labeled exploded super graph..." << std::endl;
+    auto lesg_pt = make_labeled_exploded_super_graph(vm, ccg_pt);
+
+    // Print stats.
+    {
+        std::cout << "# of pag vertices: " << num_vertices(pag) << "\n";
+        std::cout << "# of pag edges: " << num_edges(pag) << "\n";
+        size_t num_p2s = 0;
+        for (const auto& v : boost::make_iterator_range(vertices(pag))) {
+            num_p2s += pag[v].points_to_set.size();
+        }
+        std::cout << "# of p2s: " << num_p2s << "\n";
+        std::cout << "# of p2s (per vertex): "
+                  << (double(num_p2s) / num_vertices(pag)) << "\n";
+    }
+
+    std::cout << "Writing PAG..." << std::endl;
+    {
+        std::ofstream ofs("output/pag.dot");
+        jitana::write_graphviz_pointer_assignment_graph(ofs, pag, &vm);
+    }
+
+    std::cout << "Writing Points-to CCG..." << std::endl;
+    {
+        std::ofstream ofs("output/ccg_pt.dot");
+        jitana::write_graphviz_contextual_call_graph(ofs, ccg_pt);
+    }
+
+    {
+        std::ofstream ofs("output/ccg_cha.dot");
+        jitana::write_graphviz_contextual_call_graph(ofs, ccg_cha);
+    }
+
+    {
+        std::ofstream ofs("output/lesg_pt.dot");
+        write_graphviz_labeled_exploded_super_graph(ofs, lesg_pt);
+    }
+
+    {
+        std::ofstream ofs("output/lesg_cha.dot");
+        write_graphviz_labeled_exploded_super_graph(ofs, lesg_cha);
+    }
+
+    std::cout << "Writing VM graphs..." << std::endl;
+    write_vm_graphs(vm);
+}
+
+void setup_class_loaders(jitana::virtual_machine& vm)
+{
     {
         const auto& filenames
                 = {"../../../dex/framework/core.dex",
@@ -88,116 +193,9 @@ void test_virtual_machine()
                                     end(filenames));
         vm.add_loader(loader, 11);
     }
-
-#if 0
-    vm.load_all_classes(66);
-    // vm.find_class({33, "LTest;"}, true);
-    vm.find_class({22, "Lcom/fasterxml/jackson/core/base/ParserMinimalBase;"},
-                  true);
-#else
-
-#if 1
-    jitana::jvm_method_hdl mh = {{77, "LTest;"}, "main([Ljava/lang/String;)V"};
-#else
-    jitana::jvm_method_hdl mh
-            // = {{22, "Lcom/instagram/android/login/fragment/LoginFragment;"},
-            = {{44, "Ljp/bio100/android/superdepth/SuperDepth;"},
-               "onCreate(Landroid/os/Bundle;)V"};
-// "onStart()V"};
-// "onResume()V"};
-// "onPause()V"};
-// "onRestart()V"};
-#endif
-    if (auto mv = vm.find_method(mh, true)) {
-        vm.load_recursive(*mv);
-
-        // Compute the call graph.
-        jitana::add_call_graph_edges(vm);
-
-        // Compute the def-use edges.
-        std::for_each(vertices(vm.methods()).first,
-                      vertices(vm.methods()).second,
-                      [&](const jitana::method_vertex_descriptor& v) {
-                          add_def_use_edges(vm.methods()[v].insns);
-                      });
-
-        std::cout << "Making pointer assignment graph for " << mh << "...";
-        std::cout << std::endl;
-
-        {
-            jitana::pointer_assignment_graph pag;
-            jitana::contextual_call_graph ccg;
-
-            auto start = std::chrono::system_clock::now();
-
-            // Apply points-to analysis.
-            jitana::update_points_to_graphs(pag, ccg, vm, *mv);
-
-            auto duration
-                    = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::system_clock::now() - start);
-
-            std::cout << "# of pag vertices: " << num_vertices(pag) << "\n";
-            std::cout << "# of pag edges: " << num_edges(pag) << "\n";
-            size_t num_p2s = 0;
-            for (const auto& v : boost::make_iterator_range(vertices(pag))) {
-                num_p2s += pag[v].points_to_set.size();
-            }
-            std::cout << "# of p2s: " << num_p2s << "\n";
-            std::cout << "# of p2s (per vertex): "
-                      << (double(num_p2s) / num_vertices(pag)) << "\n";
-            std::cout << "duration: " << duration.count() << " ms\n";
-
-            std::cout << "Writing PAG..." << std::endl;
-            {
-                std::ofstream ofs("output/pag.dot");
-                jitana::write_graphviz_pointer_assignment_graph(ofs, pag, &vm);
-            }
-
-            {
-                std::ofstream ofs("output/ccg2.dot");
-                boost::write_graphviz(ofs, ccg);
-            }
-        }
-
-        {
-            auto ccg = make_cha_call_graph(vm, {*mv});
-            auto lesg = make_labeled_exploded_super_graph(vm, ccg);
-
-            {
-                std::ofstream ofs("output/cha_ccg.dot");
-                jitana::write_graphviz_contextual_call_graph(ofs, ccg);
-            }
-
-            {
-                std::ofstream ofs("output/lesg.dot");
-                write_graphviz_labeled_exploded_super_graph(ofs, lesg);
-            }
-        }
-    }
-    else {
-        throw std::runtime_error("failed to find the method");
-    }
-#endif
-
-    // Compute the call graph.
-    jitana::add_call_graph_edges(vm);
-
-    // Compute the def-use edges.
-    std::for_each(vertices(vm.methods()).first, vertices(vm.methods()).second,
-                  [&](const jitana::method_vertex_descriptor& v) {
-                      add_def_use_edges(vm.methods()[v].insns);
-                  });
-
-    std::cout << "# of classes: " << num_vertices(vm.classes()) << "\n";
-    std::cout << "# of methods: " << num_vertices(vm.methods()) << "\n";
-    std::cout << "# of fields:  " << num_vertices(vm.fields()) << "\n";
-
-    std::cout << "Writing graphs..." << std::endl;
-    write_graphs(vm);
 }
 
-void write_graphs(jitana::virtual_machine& vm)
+void write_vm_graphs(jitana::virtual_machine& vm)
 {
     {
         std::ofstream ofs("output/loader_graph.dot");
@@ -233,7 +231,7 @@ void write_graphs(jitana::virtual_machine& vm)
 int main()
 {
     try {
-        test_virtual_machine();
+        run_analysis();
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n\n";

@@ -145,7 +145,8 @@ namespace jitana {
             const auto& ig = mg[mv].insns;
 
             if (num_vertices(ig) == 0) {
-                std::cout << "no vertices\n";
+                // TODO: handle method without vertices.
+                // std::cout << "no vertices\n";
                 continue;
             }
 
@@ -291,13 +292,13 @@ namespace jitana {
 
             auto caller_regs = regs_vec(*invoke_insn);
             for (size_t i = 0; i < caller_regs.size(); ++i) {
-                std::cout << caller_regs[i].value << " -> "
-                          << regs_size - ins_size + i << "\n";
+                // std::cout << caller_regs[i].value << " -> "
+                //           << regs_size - ins_size + i << "\n";
                 add_edge(call_v + caller_regs[i].value + 3,
                          entry_v + regs_size - ins_size + i + 3,
                          {lesg_edge_property::kind_call}, lesg);
             }
-            std::cout << "\n";
+            // std::cout << "\n";
 
             add_edge(exit_v + idx_result_reg, return_v + idx_result_reg,
                      {lesg_edge_property::kind_return}, lesg);
