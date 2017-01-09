@@ -29,6 +29,7 @@
 #include <jitana/analysis/def_use.hpp>
 #include <jitana/analysis/intent_flow_intraprocedural.hpp>
 #include <jitana/analysis/intent_flow_string.hpp>
+#include <jitana/analysis/content_provider_flow_string.hpp>
 
 void write_graphs(const jitana::virtual_machine& vm);
 
@@ -80,6 +81,10 @@ void run_iac_analysis()
     jitana::add_intent_flow_edges_string(vm);
 #endif
 
+    // Compute the content-provider-flow edges.
+    std::cout << "Computing the content_provider-flow..." << std::endl;
+    jitana::add_content_provider_flow_edges_string(vm);
+
     std::cout << "Writing graphs..." << std::endl;
     write_graphs(vm);
 
@@ -103,6 +108,14 @@ void write_graphs(const jitana::virtual_machine& vm)
         std::ofstream ofs("output/intent_graph.dot");
         auto g = jitana::
                 make_edge_filtered_graph<jitana::intent_flow_edge_property>(
+                        vm.loaders());
+        write_graphviz_loader_graph(ofs, g);
+    }
+
+    {
+        std::ofstream ofs("output/content_provider_flow_graph.dot");
+        auto g = jitana::
+                make_edge_filtered_graph<jitana::content_provider_flow_edge_property>(
                         vm.loaders());
         write_graphviz_loader_graph(ofs, g);
     }
