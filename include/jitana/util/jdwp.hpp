@@ -58,8 +58,10 @@ namespace jitana {
         ~jdwp_connection();
         void connect(const std::string& host, const std::string& port);
         void close();
-        int send_command(jdwp_command_set command_set, jdwp_command command);
-        void receive_reply_header(jdwp_reply_header& reply_header);
+        uint32_t send_command(jdwp_command_set command_set,
+                              jdwp_command command);
+        void receive_reply_header(jdwp_reply_header& reply_header,
+                                  uint32_t expected_id);
 
         template <typename Visitor>
         void receive_insn_counters(Visitor& visitor);
@@ -91,10 +93,10 @@ namespace jitana {
 template <typename Visitor>
 void jitana::jdwp_connection::receive_insn_counters(Visitor& visitor)
 {
-    send_command(225, 1);
+    auto id = send_command(225, 1);
 
     jdwp_reply_header reply_header;
-    receive_reply_header(reply_header);
+    receive_reply_header(reply_header, id);
 
     // Read the payload.
     for (;;) {

@@ -129,8 +129,8 @@ std::string jdwp_connection::read_string()
     return read_string(read_uint32());
 }
 
-int jdwp_connection::send_command(jdwp_command_set command_set,
-                                  jdwp_command command)
+uint32_t jdwp_connection::send_command(jdwp_command_set command_set,
+                                       jdwp_command command)
 {
     if (!connected()) {
         throw std::runtime_error("not connected");
@@ -145,20 +145,48 @@ int jdwp_connection::send_command(jdwp_command_set command_set,
     write(command_set);
     write(command);
 
-    ++id_;
-
-    return id_;
+    return id_++;
 }
 
-void jdwp_connection::receive_reply_header(jdwp_reply_header& reply_header)
+void jdwp_connection::receive_reply_header(jdwp_reply_header& reply_header,
+                                           uint32_t expected_id)
 {
     if (!connected()) {
         throw std::runtime_error("not connected");
     }
 
-    // Read the header.
-    reply_header.length = read_uint32();
-    reply_header.id = read_uint32();
-    reply_header.flags = read_uint8();
-    reply_header.error_code = read_uint16();
+    for (;;) {
+        // Receive the packet header.
+        reply_header.length = read_uint32();
+        reply_header.id = read_uint32();
+        reply_header.flags = read_uint8();
+        reply_header.error_code = read_uint16();
+
+        if (reply_header.id == expected_id) {
+            // Received a valid replpy.
+            break;
+        }
+
+        // Print the packet info.
+        if ((reply_header.flags & 0x80) == 0) {
+            int cmd_set = (reply_header.error_code >> 8) & 0xff;
+            int cmd = reply_header.error_code & 0xff;
+            std::cerr << "command ignored: {";
+            std::cerr << "command set: " << cmd_set << ", command: " << cmd;
+            std::cerr << "}\n";
+        }
+        else {
+            std::cerr << "invalid reply: {";
+            std::cerr << "id: " << reply_header.id;
+            std::cerr << " (" << expected_id << "expected)";
+            std::cerr << ", error code: " << reply_header.error_code;
+            std::cerr << "}\n";
+        }
+
+        // Discard the current packet content.
+        for (unsigned i = 0; i < reply_header.length - 11; ++i) {
+            uint8_t data;
+            read(&data, 1);
+        }
+    }
 }
