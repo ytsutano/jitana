@@ -13,7 +13,8 @@ pull_and_extract() {
     else
         # APK/JAR file: extract using apktool.
         EXTRACTED="apks-extracted/$1"
-        apktool decode --force --no-src -o $EXTRACTED "apks/$1"
+        rm -rf $EXTRACTED
+        unzip -q "apks/$1" -d $EXTRACTED
         find "$EXTRACTED" \
             ! \( -name "$1" -o -name '*.dex' -o -name '*.xml' \) -prune \
             -exec rm -rf "{}" \;
