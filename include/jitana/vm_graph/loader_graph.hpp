@@ -54,11 +54,10 @@ namespace jitana {
     };
 
     /// A loader graph.
-    using loader_graph = boost::adjacency_list<boost::vecS, boost::vecS,
-                                               boost::bidirectionalS,
-                                               loader_vertex_property,
-                                               loader_edge_property,
-                                               loader_graph_property>;
+    using loader_graph = boost::adjacency_list<
+            boost::vecS, boost::vecS, boost::bidirectionalS,
+            loader_vertex_property, loader_edge_property,
+            loader_graph_property>;
 
     template <typename LoaderGraph>
     inline boost::optional<loader_vertex_descriptor>

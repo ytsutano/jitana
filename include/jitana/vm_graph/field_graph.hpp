@@ -63,11 +63,9 @@ namespace jitana {
     };
 
     /// A field graph.
-    using field_graph
-            = boost::adjacency_list<boost::vecS, boost::vecS,
-                                    boost::bidirectionalS,
-                                    field_vertex_property, field_edge_property,
-                                    field_graph_property>;
+    using field_graph = boost::adjacency_list<
+            boost::vecS, boost::vecS, boost::bidirectionalS,
+            field_vertex_property, field_edge_property, field_graph_property>;
 
     template <typename FieldGraph>
     inline boost::optional<field_vertex_descriptor>

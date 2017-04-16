@@ -1041,9 +1041,9 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                 const auto& raw = raw_insn->fmt_31t;
 
                 // Read the payload instruction.
-                const auto& raw_payload
-                        = *reinterpret_cast<const dex_fmt_fill_array_data_payload*>(
-                                &raw_insns[off + raw.roff_b]);
+                const auto& raw_payload = *reinterpret_cast<
+                        const dex_fmt_fill_array_data_payload*>(
+                        &raw_insns[off + raw.roff_b]);
                 array_payload payload;
                 payload.element_width = raw_payload.element_width;
                 payload.size = raw_payload.size;
@@ -1103,9 +1103,9 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                 const auto& raw = raw_insn->fmt_31t;
 
                 // Read the payload instruction.
-                const auto& raw_payload
-                        = *reinterpret_cast<const dex_fmt_packed_switch_payload*>(
-                                &raw_insns[off + raw.roff_b]);
+                const auto& raw_payload = *reinterpret_cast<
+                        const dex_fmt_packed_switch_payload*>(
+                        &raw_insns[off + raw.roff_b]);
                 for (int i = 0; i < raw_payload.size; ++i) {
                     if (raw_payload.targets[i] != insn_info.size()) {
                         const auto target_off = off + raw_payload.targets[i];
@@ -1126,9 +1126,9 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
                 const auto& raw = raw_insn->fmt_31t;
 
                 // Read the payload instruction.
-                const auto& raw_payload
-                        = *reinterpret_cast<const dex_fmt_sparse_switch_payload*>(
-                                &raw_insns[off + raw.roff_b]);
+                const auto& raw_payload = *reinterpret_cast<
+                        const dex_fmt_sparse_switch_payload*>(
+                        &raw_insns[off + raw.roff_b]);
                 const int32_t* keys = raw_payload.keys_targets;
                 const int32_t* targets = keys + raw_payload.size;
                 for (int i = 0; i < raw_payload.size; ++i) {

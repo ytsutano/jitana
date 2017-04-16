@@ -27,13 +27,11 @@
 BOOST_TYPE_ERASURE_FREE((has_print_graphviz_attr), print_graphviz_attr, 2)
 
 namespace jitana {
-    using any_edge_property = boost::type_erasure::
-            any<boost::mpl::
-                        vector<boost::type_erasure::copy_constructible<>,
-                               boost::type_erasure::relaxed,
-                               has_print_graphviz_attr<void(
-                                       std::ostream&,
-                                       const boost::type_erasure::_self&)>>>;
+    using any_edge_property = boost::type_erasure::any<boost::mpl::vector<
+            boost::type_erasure::copy_constructible<>,
+            boost::type_erasure::relaxed,
+            has_print_graphviz_attr<void(std::ostream&,
+                                         const boost::type_erasure::_self&)>>>;
 }
 
 #endif

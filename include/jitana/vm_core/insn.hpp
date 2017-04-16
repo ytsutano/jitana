@@ -342,8 +342,8 @@ namespace jitana {
 
     namespace detail {
         struct extract_regs
-                : public boost::
-                          static_visitor<boost::iterator_range<const register_idx*>> {
+                : public boost::static_visitor<
+                          boost::iterator_range<const register_idx*>> {
             template <typename T>
             boost::iterator_range<const register_idx*>
             operator()(const T& x) const

@@ -65,11 +65,9 @@ namespace jitana {
     };
 
     /// A class graph.
-    using class_graph
-            = boost::adjacency_list<boost::vecS, boost::vecS,
-                                    boost::bidirectionalS,
-                                    class_vertex_property, class_edge_property,
-                                    class_graph_property>;
+    using class_graph = boost::adjacency_list<
+            boost::vecS, boost::vecS, boost::bidirectionalS,
+            class_vertex_property, class_edge_property, class_graph_property>;
 
     template <typename ClassGraph>
     inline boost::optional<class_vertex_descriptor>

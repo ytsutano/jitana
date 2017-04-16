@@ -65,11 +65,10 @@ namespace jitana {
     };
 
     /// A method graph.
-    using method_graph = boost::adjacency_list<boost::vecS, boost::vecS,
-                                               boost::bidirectionalS,
-                                               method_vertex_property,
-                                               method_edge_property,
-                                               method_graph_property>;
+    using method_graph = boost::adjacency_list<
+            boost::vecS, boost::vecS, boost::bidirectionalS,
+            method_vertex_property, method_edge_property,
+            method_graph_property>;
 
     template <typename MethodGraph>
     inline boost::optional<method_vertex_descriptor>

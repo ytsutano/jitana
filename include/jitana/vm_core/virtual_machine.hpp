@@ -91,8 +91,8 @@ namespace jitana {
 
         /// Finds the instruction vertex that corresponds to the DEX file
         /// offset.
-        boost::optional<std::pair<method_vertex_descriptor,
-                                  insn_vertex_descriptor>>
+        boost::optional<
+                std::pair<method_vertex_descriptor, insn_vertex_descriptor>>
         find_insn(const dex_file_hdl& file_hdl, uint32_t offset, bool try_load);
 
         std::unordered_set<method_vertex_descriptor>

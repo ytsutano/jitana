@@ -332,24 +332,28 @@ namespace {
 
         const auto& fg = d_.vm.fields();
         if (fg[*fv].type_char == 'L' || fg[*fv].type_char == '[') {
-            for_each_incoming_reg(d_, src_reg, [&](const dex_reg_hdl&
-                                                           src_reg_hdl) {
-                for_each_incoming_reg(
-                        d_, obj_reg, [&](const dex_reg_hdl& obj_reg_hdl) {
-                            auto src_v = make_vertex_for_reg(
-                                    src_reg_hdl, d_.context, d_.pag);
-                            auto dst_v = make_vertex_for_reg_dot_field(
-                                    obj_reg_hdl, field_hdl, d_.context, d_.pag);
-                            auto obj_v = make_vertex_for_reg(
-                                    obj_reg_hdl, d_.context, d_.pag);
+            for_each_incoming_reg(
+                    d_, src_reg, [&](const dex_reg_hdl& src_reg_hdl) {
+                        for_each_incoming_reg(
+                                d_, obj_reg,
+                                [&](const dex_reg_hdl& obj_reg_hdl) {
+                                    auto src_v = make_vertex_for_reg(
+                                            src_reg_hdl, d_.context, d_.pag);
+                                    auto dst_v = make_vertex_for_reg_dot_field(
+                                            obj_reg_hdl, field_hdl, d_.context,
+                                            d_.pag);
+                                    auto obj_v = make_vertex_for_reg(
+                                            obj_reg_hdl, d_.context, d_.pag);
 
-                            d_.pag[obj_v].dereferenced_by.push_back(dst_v);
-                            unique_sort(d_.pag[obj_v].dereferenced_by);
+                                    d_.pag[obj_v].dereferenced_by.push_back(
+                                            dst_v);
+                                    unique_sort(d_.pag[obj_v].dereferenced_by);
 
-                            add_edge(src_v, dst_v,
-                                     {pag_edge_property::kind_istore}, d_.pag);
-                        });
-            });
+                                    add_edge(src_v, dst_v,
+                                             {pag_edge_property::kind_istore},
+                                             d_.pag);
+                                });
+                    });
         }
     }
 
@@ -885,8 +889,8 @@ namespace {
 
         void update_dereferencer(const pag_vertex_descriptor& v)
         {
-            using edge_list = std::vector<std::pair<pag_vertex_descriptor,
-                                                    pag_vertex_descriptor>>;
+            using edge_list = std::vector<
+                    std::pair<pag_vertex_descriptor, pag_vertex_descriptor>>;
 
             struct visitor : boost::static_visitor<void> {
                 visitor(pag_vertex_descriptor dereferencer_v,

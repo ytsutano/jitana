@@ -501,8 +501,9 @@ namespace jitana {
                 os_ << escape(x);
                 if (vm_) {
                     os_ << "\\n" << escape(vm_->make_jvm_hdl(x.field_hdl));
-                    os_ << "\\nin " << escape(vm_->make_jvm_hdl(
-                                               x.reg_hdl.insn_hdl.method_hdl));
+                    os_ << "\\nin "
+                        << escape(vm_->make_jvm_hdl(
+                                   x.reg_hdl.insn_hdl.method_hdl));
                 }
                 print_common_label();
                 os_ << "color=red,";

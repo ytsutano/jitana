@@ -98,25 +98,22 @@ void write_graphs(const jitana::virtual_machine& vm)
 {
     {
         std::ofstream ofs("output/loader_graph.dot");
-        auto g = jitana::
-                make_edge_filtered_graph<jitana::loader_parent_edge_property>(
-                        vm.loaders());
+        auto g = jitana::make_edge_filtered_graph<
+                jitana::loader_parent_edge_property>(vm.loaders());
         write_graphviz_loader_graph(ofs, g);
     }
 
     {
         std::ofstream ofs("output/intent_graph.dot");
-        auto g = jitana::
-                make_edge_filtered_graph<jitana::intent_flow_edge_property>(
-                        vm.loaders());
+        auto g = jitana::make_edge_filtered_graph<
+                jitana::intent_flow_edge_property>(vm.loaders());
         write_graphviz_loader_graph(ofs, g);
     }
 
     {
         std::ofstream ofs("output/content_provider_flow_graph.dot");
-        auto g = jitana::
-                make_edge_filtered_graph<jitana::content_provider_flow_edge_property>(
-                        vm.loaders());
+        auto g = jitana::make_edge_filtered_graph<
+                jitana::content_provider_flow_edge_property>(vm.loaders());
         write_graphviz_loader_graph(ofs, g);
     }
 
