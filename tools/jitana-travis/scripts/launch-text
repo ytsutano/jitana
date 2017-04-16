@@ -1,0 +1,17 @@
+#!/bin/bash
+
+dvm_args="-cp /sdcard/test/01.dex ReflectionTest"
+
+adb wait-for-device
+
+# Start the command line app.
+adb shell dalvikvm \
+    -agentlib:jdwp=transport=dt_socket,address=6200,suspend=y,server=y \
+    $dvm_args &
+
+# Port forward.
+adb forward --remove-all && adb -d forward tcp:6100 tcp:6200
+
+# Start Jitana.
+mkdir -p output/insn
+./jitana-travis
