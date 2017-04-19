@@ -86,7 +86,7 @@ ideas:
 
 ### 4.1 Graph Data Structures
 
-[The VM Design](dot_design.svg).
+- [The VM Design](doc/design.pdf).
 
 #### `jitana::virtual_machine`
 
