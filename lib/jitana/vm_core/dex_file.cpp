@@ -25,13 +25,13 @@ using namespace jitana;
 using namespace jitana::detail;
 
 dex_file::dex_file(dex_file_hdl hdl, std::string filename,
-                   const uint8_t* file_begin)
+                   const uint8_t* file_begin, const uint8_t* file_end)
         : hdl_(std::move(hdl)), file_(std::make_shared<mapped_file>())
 {
     file_->name = std::move(filename);
 
     file_->begin = file_begin;
-    file_->length = 0;
+    file_->end = file_end;
 
     load_dex_file();
 }
@@ -55,18 +55,16 @@ dex_file::dex_file(dex_file_hdl hdl, std::string filename)
         throw std::runtime_error(ss.str());
     }
 
-    // Get the file length.
-    file_->length = file_->file.end() - file_->file.begin();
-
     // Get the file content.
-    file_->begin = reinterpret_cast<const uint8_t*>(file_->file.data());
+    file_->begin = reinterpret_cast<const uint8_t*>(file_->file.begin());
+    file_->end = reinterpret_cast<const uint8_t*>(file_->file.end());
 
     load_dex_file();
 }
 
 void dex_file::load_dex_file()
 {
-    auto reader = stream_reader{file_->begin};
+    stream_reader reader(file_->begin, file_->end);
 
     // Check the DEX magic string.
     auto magic = reinterpret_cast<const char*>(file_->begin);
@@ -88,7 +86,7 @@ void dex_file::load_dex_file()
     }
 
     // Set the pointer to the DEX header.
-    reader.set_base(dex_begin_);
+    reader.set_memory_range(dex_begin_, file_->end);
     header_ = &reader.get<dex_header>();
 
     ids_.reader_ = reader;
@@ -206,7 +204,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
     // Load the interfaces.
     std::vector<class_vertex_descriptor> interface_v_list;
     if (def.interfaces_off() != 0) {
-        auto reader = stream_reader{dex_begin_};
+        stream_reader reader(dex_begin_, file_->end);
         reader.move_head(def.interfaces_off());
 
         const auto& size = reader.get<uint32_t>();
@@ -237,7 +235,7 @@ dex_file::load_class(virtual_machine& vm, const std::string& descriptor) const
 
     // Load the class data.
     if (def.class_data_off() != 0) {
-        auto reader = stream_reader{dex_begin_};
+        stream_reader reader(dex_begin_, file_->end);
         reader.move_head(def.class_data_off());
 
         auto& fg = vm.fields();
@@ -594,7 +592,7 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
         return g;
     }
 
-    auto reader = stream_reader{dex_begin_};
+    stream_reader reader(dex_begin_, file_->end);
     reader.move_head(code_off);
 
     auto raw_header = &reader.get<dex_code_header>();
@@ -682,8 +680,9 @@ insn_graph dex_file::make_insn_graph(method_vertex_property& mvprop,
 
     // Parse the try-catch block.
     for (size_t i = 0; i < raw_header->tries_size; ++i) {
-        auto tc_reader = stream_reader{raw_encoded_catch_handler_list
-                                       + raw_tries[i].handler_off};
+        stream_reader tc_reader(raw_encoded_catch_handler_list
+                                        + raw_tries[i].handler_off,
+                                file_->end);
         try_catch_block tc;
 
         // Find the starting vertex.
@@ -1773,7 +1772,7 @@ void dex_file::parse_debug_info(insn_graph& g, method_vertex_property& mvprop,
     }
 
     // Create a stream reader.
-    auto reader = stream_reader{dex_begin_};
+    stream_reader reader(dex_begin_, file_->end);
     reader.move_head(debug_info_off);
 
     // Get the starting line number.

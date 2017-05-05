@@ -180,7 +180,7 @@ namespace jitana {
     public:
         /// Creates a DexFile instance from a memory-mapped file.
         explicit dex_file(dex_file_hdl hdl, std::string filename,
-                          const uint8_t* file_begin);
+                          const uint8_t* file_begin, const uint8_t* file_end);
 
         /// Creates a DexFile instance by opening a file.
         explicit dex_file(dex_file_hdl hdl, std::string filename);
@@ -225,7 +225,7 @@ namespace jitana {
         struct mapped_file {
             boost::iostreams::mapped_file_source file;
             const uint8_t* begin;
-            size_t length;
+            const uint8_t* end;
             std::string name;
         };
 
