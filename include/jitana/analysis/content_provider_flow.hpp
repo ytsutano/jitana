@@ -61,9 +61,15 @@ namespace jitana {
 
                 auto add_intent_filters = [&](const std::string& intent_type) {
                     for (const auto& x : child_elements(app_pt, intent_type)) {
-                        auto name = x.second.get<std::string>(
+                        auto val = x.second.get_optional<std::string>(
                                 "<xmlattr>.android:name");
-                        assert(name.size() > 0);
+                        if (!val || val->size() == 0) {
+                            std::cerr << package_name;
+                            std::cerr << ": invalid XML";
+                            std::cerr << " (content provider)\n";
+                            continue;
+                        }
+                        std::string name = *val;
 
                         if (name[0] == '.') {
                             name = package_name + name;

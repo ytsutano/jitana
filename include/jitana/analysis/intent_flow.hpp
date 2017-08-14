@@ -68,9 +68,16 @@ namespace jitana {
 
                 auto add_intent_filters = [&](const std::string& intent_type) {
                     for (const auto& x : child_elements(app_pt, intent_type)) {
-                        auto name = x.second.get<std::string>(
+                        auto val = x.second.get_optional<std::string>(
                                 "<xmlattr>.android:name");
-                        assert(name.size() > 0);
+                        if (!val || val->size() == 0) {
+                            std::cerr << package_name;
+                            std::cerr << ": invalid XML";
+                            std::cerr << " (explicit intent ";
+                            std::cerr << intent_type << ")\n";
+                            continue;
+                        }
+                        std::string name = *val;
 
                         if (name[0] == '.') {
                             name = package_name + name;
@@ -119,8 +126,17 @@ namespace jitana {
                              child_elements(x.second, "intent-filter")) {
                             for (const auto& z :
                                  child_elements(y.second, "action")) {
-                                const auto& name = z.second.get<std::string>(
+                                auto val = z.second.get_optional<std::string>(
                                         "<xmlattr>.android:name");
+                                if (!val || val->size() == 0) {
+                                    std::cerr << info->package_name();
+                                    std::cerr << ": invalid XML";
+                                    std::cerr << " (implicit intent ";
+                                    std::cerr << intent_type << ")\n";
+                                    continue;
+                                }
+                                std::string name = *val;
+
                                 if (name != "android.intent.action.MAIN"
                                     && name != "android.intent.action.VIEW") {
                                     handlers[name].push_back(lv);
