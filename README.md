@@ -1,5 +1,4 @@
-Jitana
-======
+# Jitana
 
 <strong>This tool is still in the early stage of development. It's known to be
 incomplet and incorrekt.</strong>
@@ -155,7 +154,7 @@ instruction, etc.) in Jitana. There are two types of handles:
 
 See include/jitana/hdl.hpp for implementation details.
 
-~~~{.cpp}
+```cpp
            +--------------------------------+---------------------------------+
            | DEX Handle                     | JVM Handle                      |
            | (Android specific: int based)  | (General Java: string based)    |
@@ -194,7 +193,7 @@ See include/jitana/hdl.hpp for implementation details.
 |          |   uint16_t idx;                |                                 |
 |          | };                             |                                 |
 +----------+--------------------------------+---------------------------------+
-~~~
+```
 
 #### 4.2.2 Handles for Class Loading Initiation vs. Handles for Definition
 
@@ -219,7 +218,7 @@ For convenience, you should create your own tool under `tools/` so that the
 build system can read your `CMakeLists.txt` automatically. You may use
 `tools/jitana-graph/` as an example.
 
-~~~~{.cpp}
+```cpp
 #include <jitana/jitana.hpp>
 
 int main()
@@ -250,16 +249,19 @@ int main()
 
     // 3a. Load a specific class.
     //     You need to specify fully qualified Java binary name.
-    vm.find_class({22, "Ljava/lang/BootClassLoader;"}, true);
+    {
+        bool try_to_load = true;
+        vm.find_class({22, "Ljava/lang/BootClassLoader;"}, try_to_load);
+    }
 
     // 3b. Or, load everything from a class loader.
     vm.load_all_classes(22);
 }
-~~~~
+```
 
-## 6 Developer
+## 6 Author
 
-- Yutaka Tsutano at University of Nebraska-Lincoln.
+- [Yutaka Tsutano](http://yutaka.tsutano.com) at University of Nebraska-Lincoln.
 
 ## 7 License
 

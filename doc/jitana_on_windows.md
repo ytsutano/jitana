@@ -1,5 +1,4 @@
-Compiling Jitana on Windows
-===========================
+# Compiling Jitana on Windows
 
 Updated: 2017-04-19
 

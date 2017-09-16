@@ -1,5 +1,4 @@
-Compiling Jitana on Linux
-=========================
+# Compiling Jitana on Linux
 
 ## Ubuntu 16.04 LTS
 

@@ -1,5 +1,4 @@
-Jitana-IAC
-==========
+# Jitana-IAC
 
 Jitana-IAC is not mature yet as it handles only implicit and explicit intents.
 
