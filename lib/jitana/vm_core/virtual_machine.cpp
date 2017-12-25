@@ -93,7 +93,7 @@ virtual_machine::find_class(const jvm_type_hdl& hdl, bool try_load)
             if (auto found_class = try_load
                         ? g[v].loader.load_class(vm, hdl.descriptor)
                         : g[v].loader.lookup_class(vm, hdl.descriptor)) {
-                throw * found_class;
+                throw *found_class;
             }
         }
     } vis(*this, hdl, try_load);
@@ -172,7 +172,7 @@ virtual_machine::find_method(const jvm_method_hdl& hdl, bool try_load)
         {
             if (auto found_method = g[v].loader.lookup_method(
                         vm, hdl.type_hdl.descriptor, hdl.unique_name)) {
-                throw * found_method;
+                throw *found_method;
             }
         }
     } vis(*this, hdl);
@@ -251,7 +251,7 @@ virtual_machine::find_field(const jvm_field_hdl& hdl, bool try_load)
         {
             if (auto found_field = g[v].loader.lookup_field(
                         vm, hdl.type_hdl.descriptor, hdl.unique_name)) {
-                throw * found_field;
+                throw *found_field;
             }
         }
     } vis(*this, hdl);
