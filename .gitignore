@@ -1,3 +1,5 @@
 .tm_properties
 .DS_Store
 *.swp
+.vscode
+build
