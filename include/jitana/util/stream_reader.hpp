@@ -185,6 +185,13 @@ namespace jitana {
             return str;
         }
 
+        std::string get_string(size_t size) const
+        {
+            std::string str(head_ptr_, head_ptr_ + size);
+            move_head_forward(size);
+            return str;
+        }
+
     private:
         /// Validates the head pointer against the begin/end pointers.
         void validate_head(size_t type_size = 0) const
